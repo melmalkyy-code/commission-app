@@ -64,6 +64,7 @@ def get_conn():
 
     if conn is None or (is_pg and getattr(conn, 'closed', 0) != 0):
         if _IS_POSTGRES:
+            # Try psycopg2 first (faster, C-based)
             try:
                 import psycopg2
                 conn = psycopg2.connect(_DB_URL)
@@ -71,8 +72,32 @@ def get_conn():
                 _local.conn = conn
                 _local.is_pg = True
                 return conn
+            except ImportError:
+                pass  # psycopg2 not available, try pg8000
             except Exception:
-                # Fallback to SQLite if PostgreSQL is unavailable
+                _IS_POSTGRES = False
+                _local.is_pg = False
+
+        # Try pg8000 (pure Python, works on any Python version)
+        if _IS_POSTGRES:
+            try:
+                import pg8000.dbapi as pg8000_dbapi
+                import urllib.parse as _urlparse
+                _p = _urlparse.urlparse(_DB_URL)
+                _db = (_p.path or '/postgres').lstrip('/').split('?')[0] or 'postgres'
+                conn = pg8000_dbapi.connect(
+                    host=_p.hostname,
+                    port=_p.port or 5432,
+                    database=_db,
+                    user=_p.username,
+                    password=_p.password,
+                    ssl_context=True,
+                )
+                conn.autocommit = True
+                _local.conn = conn
+                _local.is_pg = True
+                return conn
+            except Exception:
                 _IS_POSTGRES = False
                 _local.is_pg = False
 
@@ -111,7 +136,12 @@ def fetchall(sql: str, params: tuple = ()) -> list:
     if getattr(_local, 'is_pg', False):
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, row)) for row in rows]
-    return [dict(row) for row in rows]
+    # SQLite returns Row objects
+    try:
+        return [dict(row) for row in rows]
+    except Exception:
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in rows]
 
 
 def fetchone(sql: str, params: tuple = ()) -> dict | None:
