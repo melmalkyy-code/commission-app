@@ -51,17 +51,16 @@ tabs = st.tabs([
 # ── BRANDING ──────────────────────────────────────────────────────────────────
 with tabs[0]:
     st.markdown("### Company Branding")
-    st.caption("Changes are saved immediately when you click Save.")
     with st.form("branding_form"):
         c1, c2 = st.columns(2)
-        company_name = c1.text_input("Company Name", get_setting('company_name', 'Surveying Experts'))
-        website      = c2.text_input("Website",      get_setting('company_website', ''))
-        phone        = c1.text_input("Phone",         get_setting('company_phone', ''))
-        primary_col  = c1.color_picker("Primary Color", get_setting('primary_color', '#354f61'))
-        accent_col   = c2.color_picker("Accent Color",  get_setting('accent_color', '#f6ba3b'))
-        report_hdr   = st.text_input("Report Header", get_setting('report_header', ''))
-        report_ftr   = st.text_input("Report Footer", get_setting('report_footer', ''))
-        watermark    = st.text_input("PDF Watermark (optional)", get_setting('watermark_text', ''))
+        company_name = c1.text_input("Company Name", get_setting('company_name', 'Surveying Experts'), key="b_cname")
+        website      = c2.text_input("Website",      get_setting('company_website', ''),              key="b_web")
+        phone        = c1.text_input("Phone",         get_setting('company_phone', ''),               key="b_phone")
+        primary_col  = c1.color_picker("Primary Color", get_setting('primary_color', '#354f61'),      key="b_primary")
+        accent_col   = c2.color_picker("Accent Color",  get_setting('accent_color', '#f6ba3b'),       key="b_accent")
+        report_hdr   = st.text_input("Report Header", get_setting('report_header', ''),               key="b_rhdr")
+        report_ftr   = st.text_input("Report Footer", get_setting('report_footer', ''),               key="b_rftr")
+        watermark    = st.text_input("PDF Watermark (optional)", get_setting('watermark_text', ''),   key="b_wm")
         if st.form_submit_button("Save Branding", type="primary"):
             for k, v in [
                 ('company_name', company_name), ('company_website', website),
@@ -72,7 +71,7 @@ with tabs[0]:
                 set_setting(k, v)
             log_action("SETTINGS_CHANGE", "settings", notes="Branding updated")
             st.cache_data.clear()
-            st.rerun()  # Rerun so PRIMARY updates immediately with new color
+            st.rerun()
 
 
 # ── BRANCHES ─────────────────────────────────────────────────────────────────
@@ -81,9 +80,9 @@ with tabs[1]:
     branches = get_branches()
 
     with st.expander("Add New Branch"):
-        with st.form("add_branch"):
-            n = st.text_input("Branch Name *")
-            c = st.text_input("City")
+        with st.form("add_branch_form"):
+            n = st.text_input("Branch Name *", key="new_br_name")
+            c = st.text_input("City",          key="new_br_city")
             if st.form_submit_button("Add Branch", type="primary") and n:
                 if _save(add_branch, n, c, ok=f"Branch '{n}' added.",
                          err=f"Branch '{n}' already exists.") is not None:
@@ -92,11 +91,11 @@ with tabs[1]:
 
     for _bi, br in enumerate(branches):
         status = "Active" if br['is_active'] else "Inactive"
-        with st.expander(f"[{status}] {br['name']} - {br.get('city','')}"):
-            with st.form(f"br_edit_{_bi}_{br['id']}"):
-                new_name  = st.text_input("Name", br['name'])
-                new_city  = st.text_input("City", br.get('city', ''))
-                is_active = st.checkbox("Active", bool(br['is_active']))
+        with st.expander(f"[{status}] {br['name']} — {br.get('city', '')}"):
+            with st.form(f"br_edit_{_bi}"):
+                new_name  = st.text_input("Name",   br['name'],          key=f"br_n_{_bi}")
+                new_city  = st.text_input("City",   br.get('city', ''), key=f"br_c_{_bi}")
+                is_active = st.checkbox("Active",   bool(br['is_active']), key=f"br_a_{_bi}")
                 c1, c2   = st.columns(2)
                 if c1.form_submit_button("Save", type="primary"):
                     _save(update_branch, br['id'], new_name, new_city, is_active)
@@ -111,47 +110,46 @@ with tabs[2]:
     st.markdown("### Salespersons")
     sps       = get_salespersons()
     branches  = get_branches(active_only=True)
-    tiers     = get_tiers(active_only=True)
+    tiers_sp  = get_tiers(active_only=True)
     br_opts   = {br['name']: br['id'] for br in branches}
-    tier_opts = {t['name']: t['id'] for t in tiers}
+    tier_opts = {t['name']: t['id'] for t in tiers_sp}
+    br_names  = list(br_opts.keys())
+    tier_names = list(tier_opts.keys())
 
     with st.expander("Add New Salesperson"):
-        with st.form("add_sp"):
-            n    = st.text_input("Full Name *")
-            br   = st.selectbox("Branch *", list(br_opts.keys()))
-            tier = st.selectbox("Target Tier *", list(tier_opts.keys()))
-            em   = st.text_input("Email")
-            if st.form_submit_button("Add Salesperson", type="primary") and n:
+        with st.form("add_sp_form"):
+            n    = st.text_input("Full Name *", key="new_sp_name")
+            br   = st.selectbox("Branch *",       br_names,  key="new_sp_br")
+            tier = st.selectbox("Target Tier *",  tier_names, key="new_sp_tier")
+            em   = st.text_input("Email",          key="new_sp_email")
+            if st.form_submit_button("Add Salesperson", type="primary") and n and br_names and tier_names:
                 if _save(add_salesperson, n, br_opts[br], tier_opts[tier], em,
-                         ok=f"'{n}' added.",
-                         err=f"'{n}' already exists.") is not None:
+                         ok=f"'{n}' added.", err=f"'{n}' already exists.") is not None:
                     st.rerun()
 
     for _si, sp in enumerate(sps):
         status = "Active" if sp['is_active'] else "Inactive"
-        with st.expander(f"[{status}] {sp['name']} - {sp.get('branch_name', '')}"):
-            with st.form(f"sp_edit_{_si}_{sp['id']}"):
-                new_n  = st.text_input("Name", sp['name'])
-                new_br = st.selectbox(
-                    "Branch", list(br_opts.keys()),
-                    index=list(br_opts.keys()).index(sp.get('branch_name', ''))
-                    if sp.get('branch_name') in br_opts else 0,
-                )
-                new_t  = st.selectbox(
-                    "Target Tier", list(tier_opts.keys()),
-                    index=list(tier_opts.keys()).index(sp.get('tier_name', ''))
-                    if sp.get('tier_name') in tier_opts else 0,
-                )
-                new_em = st.text_input("Email", sp.get('email', ''))
-                is_act = st.checkbox("Active", bool(sp['is_active']))
-                c1, c2 = st.columns(2)
+        with st.expander(f"[{status}] {sp['name']} — {sp.get('branch_name', '')}"):
+            with st.form(f"sp_edit_{_si}"):
+                new_n    = st.text_input("Name",  sp['name'],              key=f"sp_n_{_si}")
+                new_em   = st.text_input("Email", sp.get('email', ''),     key=f"sp_e_{_si}")
+                # Branch selectbox
+                cur_br   = sp.get('branch_name', '')
+                br_idx   = br_names.index(cur_br) if cur_br in br_names else 0
+                new_br   = st.selectbox("Branch",      br_names,  index=br_idx,  key=f"sp_br_{_si}")
+                # Tier selectbox
+                cur_tier = sp.get('tier_name', '')
+                tier_idx = tier_names.index(cur_tier) if cur_tier in tier_names else 0
+                new_t    = st.selectbox("Target Tier", tier_names, index=tier_idx, key=f"sp_ti_{_si}")
+                is_act   = st.checkbox("Active", bool(sp['is_active']),     key=f"sp_a_{_si}")
+                c1, c2   = st.columns(2)
                 if c1.form_submit_button("Save", type="primary"):
-                    _save(update_salesperson, sp['id'], new_n,
-                          br_opts[new_br], tier_opts[new_t], new_em, is_act)
+                    if br_names and tier_names:
+                        _save(update_salesperson, sp['id'], new_n,
+                              br_opts[new_br], tier_opts[new_t], new_em, is_act)
                     st.rerun()
                 if c2.form_submit_button("Delete", type="secondary"):
-                    _save(delete_salesperson, sp['id'],
-                          ok=f"Deleted '{sp['name']}'.")
+                    _save(delete_salesperson, sp['id'], ok=f"Deleted '{sp['name']}'.")
                     st.rerun()
 
 
@@ -162,15 +160,19 @@ with tabs[3]:
     cats  = get_categories(active_only=True)
 
     with st.expander("Add New Tier"):
-        with st.form("add_tier"):
-            tn      = st.text_input("Tier Name *")
-            td      = st.text_input("Description")
+        with st.form("add_tier_form"):
+            tn = st.text_input("Tier Name *", key="new_tier_name")
+            td = st.text_input("Description", key="new_tier_desc")
             amounts = {}
-            st.markdown("**Category Targets (SAR):**")
-            cols = st.columns(len(cats) if cats else 1)
-            for i, cat in enumerate(cats):
-                amounts[cat['id']] = cols[i].number_input(
-                    cat['name'], min_value=0, step=50000, value=0)
+            if cats:
+                st.markdown("**Category Targets (SAR):**")
+                cols = st.columns(len(cats))
+                for i, cat in enumerate(cats):
+                    # Use loop index i — guaranteed unique within this form
+                    amounts[cat['id']] = cols[i].number_input(
+                        cat['name'], min_value=0, step=50000, value=0,
+                        key=f"new_tc_{i}",
+                    )
             if st.form_submit_button("Add Tier", type="primary") and tn:
                 try:
                     tid = add_tier(tn, td)
@@ -186,20 +188,24 @@ with tabs[3]:
     for _ti, tier in enumerate(tiers):
         total  = sum(tier['targets'].values())
         status = "Active" if tier['is_active'] else "Inactive"
-        with st.expander(f"[{status}] {tier['name']} - Total target: SAR {total:,.0f}"):
-            with st.form(f"tier_edit_{_ti}_{tier['id']}"):
-                tn     = st.text_input("Name", tier['name'])
-                td     = st.text_input("Description", tier.get('description', ''))
-                is_act = st.checkbox("Active", bool(tier['is_active']))
-                st.markdown("**Category Targets (SAR):**")
-                cols    = st.columns(len(cats) if cats else 1)
-                amounts = {}
-                for i, cat in enumerate(cats):
-                    amounts[cat['id']] = cols[i].number_input(
-                        cat['name'], min_value=0, step=50000,
-                        value=int(tier['targets'].get(cat['id'], 0)),
-                        key=f"tier_cat_{_ti}_{tier['id']}_{cat['id']}",
-                    )
+        with st.expander(f"[{status}] {tier['name']} — Total: SAR {total:,.0f}"):
+            # Use _ti (enumerate index) as sole tier disambiguator — immune to id quirks
+            with st.form(f"tier_edit_{_ti}"):
+                tn     = st.text_input("Name",        tier['name'],               key=f"t_n_{_ti}")
+                td     = st.text_input("Description",  tier.get('description', ''), key=f"t_d_{_ti}")
+                is_act = st.checkbox("Active",         bool(tier['is_active']),    key=f"t_a_{_ti}")
+                if cats:
+                    st.markdown("**Category Targets (SAR):**")
+                    cols    = st.columns(len(cats))
+                    amounts = {}
+                    for i, cat in enumerate(cats):
+                        amounts[cat['id']] = cols[i].number_input(
+                            cat['name'],
+                            min_value=0, step=50000,
+                            value=int(tier['targets'].get(cat['id'], 0)),
+                            # _ti = tier position, i = category position — both unique
+                            key=f"t_c_{_ti}_{i}",
+                        )
                 c1, c2 = st.columns(2)
                 if c1.form_submit_button("Save", type="primary"):
                     update_tier(tier['id'], tn, td, is_act)
@@ -219,9 +225,9 @@ with tabs[4]:
     cats = get_categories()
 
     with st.expander("Add Category"):
-        with st.form("add_cat"):
-            cn = st.text_input("Category Name *")
-            co = st.number_input("Display Order", min_value=0, value=0)
+        with st.form("add_cat_form"):
+            cn = st.text_input("Category Name *", key="new_cat_name")
+            co = st.number_input("Display Order", min_value=0, value=0, key="new_cat_order")
             if st.form_submit_button("Add", type="primary") and cn:
                 try:
                     cid = add_category(cn, co)
@@ -233,84 +239,89 @@ with tabs[4]:
                     msg = str(e).lower()
                     st.error(f"'{cn}' already exists." if "unique" in msg else str(e))
 
-    cat_df = pd.DataFrame([{
-        "ID": c['id'], "Name": c['name'], "Order": c['display_order'],
-        "In Target":     bool(c['include_in_target']),
-        "In Commission": bool(c['include_in_commission']),
-        "In KPI":        bool(c['include_in_kpi']),
-        "Active":        bool(c['is_active']),
-    } for c in cats])
-    edited_cats = st.data_editor(
-        cat_df, use_container_width=True, hide_index=True,
-        disabled=["ID"], num_rows="fixed",
-        column_config={"ID": st.column_config.NumberColumn(width="small")},
-        key="cat_editor",
-    )
-    if st.button("Save Category Changes", type="primary", key="save_cats"):
-        for _, row in edited_cats.iterrows():
-            update_category(int(row['ID']), row['Name'], int(row['Order']),
-                            bool(row['In Target']), bool(row['In Commission']),
-                            bool(row['In KPI']), bool(row['Active']))
-        st.cache_data.clear()
-        st.success("Categories saved.")
-        st.rerun()
+    if cats:
+        cat_df = pd.DataFrame([{
+            "ID":            c['id'],
+            "Name":          c['name'],
+            "Order":         c['display_order'],
+            "In Target":     bool(c['include_in_target']),
+            "In Commission": bool(c['include_in_commission']),
+            "In KPI":        bool(c['include_in_kpi']),
+            "Active":        bool(c['is_active']),
+        } for c in cats])
+        edited_cats = st.data_editor(
+            cat_df, use_container_width=True, hide_index=True,
+            disabled=["ID"], num_rows="fixed", key="cat_editor",
+        )
+        if st.button("Save Category Changes", type="primary", key="save_cats"):
+            for _, row in edited_cats.iterrows():
+                update_category(int(row['ID']), row['Name'], int(row['Order']),
+                                bool(row['In Target']), bool(row['In Commission']),
+                                bool(row['In KPI']), bool(row['Active']))
+            st.cache_data.clear()
+            st.success("Categories saved.")
+            st.rerun()
 
 
 # ── COMMISSION BRACKETS ───────────────────────────────────────────────────────
 with tabs[5]:
     st.markdown("### Category Commission Brackets")
-    cats         = get_categories(active_only=True)
-    sel_cat_name = st.selectbox(
-        "Select Category", [c['name'] for c in cats], key="bracket_cat")
-    cat_obj = next((c for c in cats if c['name'] == sel_cat_name), None)
+    cats_br      = get_categories(active_only=True)
+    cat_br_names = [c['name'] for c in cats_br]
 
-    calc_method = st.selectbox(
-        "Calculation Method", ["flat", "progressive"],
-        index=0 if get_setting('global_calc_method', 'flat') == 'flat' else 1,
-        key="calc_method_sel",
-    )
-    if st.button("Save Method", key="save_method"):
-        set_setting('global_calc_method', calc_method)
-        st.success("Method saved.")
+    if not cats_br:
+        st.info("No active categories. Add categories first.")
+    else:
+        sel_cat_name = st.selectbox("Select Category", cat_br_names, key="bracket_cat")
+        cat_obj      = next((c for c in cats_br if c['name'] == sel_cat_name), None)
 
-    if cat_obj:
-        brackets = get_brackets(cat_obj['id'], active_only=False)
-        if brackets:
-            br_df = pd.DataFrame([{
-                "ID":         b['id'],
-                "From (SAR)": b['from_amount'],
-                "To (SAR)":   b['to_amount'] or 0,
-                "Rate %":     b['commission_rate'],
-                "Unlimited":  bool(b['is_unlimited']),
-                "Active":     bool(b['is_active']),
-                "Sort":       b['sort_order'],
-            } for b in brackets])
-            edited_br = st.data_editor(
-                br_df, use_container_width=True, hide_index=True,
-                disabled=["ID"], key="br_editor",
-            )
-            if st.button("Save Brackets", type="primary", key="save_brackets"):
-                for _, row in edited_br.iterrows():
-                    to_amt = None if row['Unlimited'] else row['To (SAR)']
-                    update_bracket(int(row['ID']), row['From (SAR)'], to_amt,
-                                   row['Rate %'], bool(row['Unlimited']),
-                                   bool(row['Active']), int(row['Sort']))
-                st.cache_data.clear()
-                st.success("Brackets saved.")
-                st.rerun()
+        calc_method  = st.selectbox(
+            "Calculation Method", ["flat", "progressive"],
+            index=0 if get_setting('global_calc_method', 'flat') == 'flat' else 1,
+            key="calc_method_sel",
+        )
+        if st.button("Save Method", key="save_method"):
+            set_setting('global_calc_method', calc_method)
+            st.success("Method saved.")
 
-        with st.expander("Add Bracket"):
-            with st.form("add_bracket"):
-                c1, c2, c3 = st.columns(3)
-                frm       = c1.number_input("From (SAR)", min_value=0, step=50000)
-                to        = c2.number_input("To (SAR)",   min_value=0, step=50000)
-                rate      = c3.number_input("Rate %", min_value=0.0, max_value=100.0, step=0.5)
-                unlimited = st.checkbox("Unlimited upper range (last bracket)")
-                if st.form_submit_button("Add Bracket", type="primary"):
-                    _save(add_bracket, cat_obj['id'], frm,
-                          None if unlimited else to, rate, unlimited,
-                          len(brackets), ok="Bracket added.")
+        if cat_obj:
+            brackets = get_brackets(cat_obj['id'], active_only=False)
+            if brackets:
+                br_df = pd.DataFrame([{
+                    "ID":         b['id'],
+                    "From (SAR)": b['from_amount'],
+                    "To (SAR)":   b['to_amount'] or 0,
+                    "Rate %":     b['commission_rate'],
+                    "Unlimited":  bool(b['is_unlimited']),
+                    "Active":     bool(b['is_active']),
+                    "Sort":       b['sort_order'],
+                } for b in brackets])
+                edited_br = st.data_editor(
+                    br_df, use_container_width=True, hide_index=True,
+                    disabled=["ID"], key="br_editor",
+                )
+                if st.button("Save Brackets", type="primary", key="save_brackets"):
+                    for _, row in edited_br.iterrows():
+                        to_amt = None if row['Unlimited'] else row['To (SAR)']
+                        update_bracket(int(row['ID']), row['From (SAR)'], to_amt,
+                                       row['Rate %'], bool(row['Unlimited']),
+                                       bool(row['Active']), int(row['Sort']))
+                    st.cache_data.clear()
+                    st.success("Brackets saved.")
                     st.rerun()
+
+            with st.expander("Add Bracket"):
+                with st.form("add_bracket_form"):
+                    c1, c2, c3 = st.columns(3)
+                    frm       = c1.number_input("From (SAR)", min_value=0, step=50000, key="new_br_from")
+                    to        = c2.number_input("To (SAR)",   min_value=0, step=50000, key="new_br_to")
+                    rate      = c3.number_input("Rate %", min_value=0.0, max_value=100.0, step=0.5, key="new_br_rate")
+                    unlimited = st.checkbox("Unlimited upper range (last bracket)", key="new_br_unlim")
+                    if st.form_submit_button("Add Bracket", type="primary"):
+                        _save(add_bracket, cat_obj['id'], frm,
+                              None if unlimited else to, rate, unlimited,
+                              len(brackets), ok="Bracket added.")
+                        st.rerun()
 
 
 # ── KPI SETTINGS ─────────────────────────────────────────────────────────────
@@ -318,13 +329,12 @@ with tabs[6]:
     st.markdown("### KPI Items & Weights")
 
     with st.expander("Add New KPI Item"):
-        with st.form("add_kpi"):
+        with st.form("add_kpi_form"):
             c1, c2, c3, c4 = st.columns(4)
-            kpi_name = c1.text_input("Name *")
-            kpi_wt   = c2.number_input("Weight %", min_value=0.0, max_value=100.0,
-                                        step=1.0, value=10.0)
-            kpi_max  = c3.number_input("Max Score", min_value=1.0, step=10.0, value=100.0)
-            kpi_sort = c4.number_input("Sort Order", min_value=0, step=1, value=0)
+            kpi_name = c1.text_input("Name *",      key="new_kpi_name")
+            kpi_wt   = c2.number_input("Weight %",  min_value=0.0, max_value=100.0, step=1.0, value=10.0, key="new_kpi_wt")
+            kpi_max  = c3.number_input("Max Score", min_value=1.0, step=10.0, value=100.0,               key="new_kpi_max")
+            kpi_sort = c4.number_input("Sort Order", min_value=0, step=1, value=0,                        key="new_kpi_sort")
             if st.form_submit_button("Add KPI Item", type="primary") and kpi_name:
                 if _save(add_kpi_item, kpi_name, kpi_wt, kpi_max, kpi_sort,
                          ok=f"'{kpi_name}' added.") is not None:
@@ -335,53 +345,52 @@ with tabs[6]:
     if abs(total_wt - 100) > 0.01:
         st.warning(f"Active KPI weights total {total_wt:.1f}% (should be 100%).")
 
-    kpi_df = pd.DataFrame([{
-        "ID": i['id'], "Name": i['name'], "Weight %": i['weight'],
-        "Max Score": i['max_score'], "Active": bool(i['is_active']),
-        "Sort": i['sort_order'],
-    } for i in kpi_items])
-    edited_kpi = st.data_editor(
-        kpi_df, use_container_width=True, hide_index=True,
-        disabled=["ID"], key="kpi_editor",
-    )
-    if st.button("Save KPI Items", type="primary", key="save_kpi"):
-        for _, row in edited_kpi.iterrows():
-            execute(
-                "UPDATE kpi_items SET name=%s, weight=%s, max_score=%s, "
-                "is_active=%s, sort_order=%s WHERE id=%s",
-                (row['Name'], row['Weight %'], row['Max Score'],
-                 int(row['Active']), int(row['Sort']), int(row['ID'])),
-            )
-        st.cache_data.clear()
-        st.success("KPI items saved.")
-        st.rerun()
-
     if kpi_items:
+        kpi_df = pd.DataFrame([{
+            "ID": i['id'], "Name": i['name'], "Weight %": i['weight'],
+            "Max Score": i['max_score'], "Active": bool(i['is_active']),
+            "Sort": i['sort_order'],
+        } for i in kpi_items])
+        edited_kpi = st.data_editor(
+            kpi_df, use_container_width=True, hide_index=True,
+            disabled=["ID"], key="kpi_editor",
+        )
+        if st.button("Save KPI Items", type="primary", key="save_kpi"):
+            for _, row in edited_kpi.iterrows():
+                execute(
+                    "UPDATE kpi_items SET name=%s, weight=%s, max_score=%s, "
+                    "is_active=%s, sort_order=%s WHERE id=%s",
+                    (row['Name'], row['Weight %'], row['Max Score'],
+                     int(row['Active']), int(row['Sort']), int(row['ID'])),
+                )
+            st.cache_data.clear()
+            st.success("KPI items saved.")
+            st.rerun()
+
         del_kpi = st.selectbox(
             "Delete a KPI item",
             ["-- select --"] + [i['name'] for i in kpi_items],
-            key="del_kpi",
+            key="del_kpi_sel",
         )
         if del_kpi != "-- select --":
-            item_to_del = next(i for i in kpi_items if i['name'] == del_kpi)
-            if st.button(f"Delete '{del_kpi}'", type="secondary", key="do_del_kpi"):
-                _save(delete_kpi_item, item_to_del['id'],
-                      ok=f"Deleted '{del_kpi}'.")
+            item_to_del = next((i for i in kpi_items if i['name'] == del_kpi), None)
+            if item_to_del and st.button(f"Delete '{del_kpi}'", type="secondary", key="do_del_kpi"):
+                _save(delete_kpi_item, item_to_del['id'], ok=f"Deleted '{del_kpi}'.")
                 st.rerun()
 
-    # Category auto-link section
+    # Category auto-link
     st.divider()
     st.markdown("### Auto-Score from Category Achievement %")
     st.caption(
-        "Link a KPI item to a sales category — score is computed automatically from "
-        "Actual Sales / Target x 100 (capped at 100). "
-        "Linked items will NOT appear in the manual KPI entry table."
+        "Link a KPI item to a sales category — score is computed automatically "
+        "from Actual / Target x 100 (capped at 100). "
+        "Linked items do NOT appear in the manual KPI entry table."
     )
-    cats_for_link   = get_categories(active_only=True)
-    cat_name_to_id  = {c['name']: c['id'] for c in cats_for_link}
-    cat_options     = ["Manual - Enter Score"] + [c['name'] for c in cats_for_link]
+    cats_lnk        = get_categories(active_only=True)
+    cat_name_to_id  = {c['name']: c['id'] for c in cats_lnk}
+    cat_options     = ["Manual - Enter Score"] + [c['name'] for c in cats_lnk]
 
-    with st.form("kpi_category_links"):
+    with st.form("kpi_links_form"):
         link_selections = {}
         for _kli, item in enumerate(kpi_items):
             c1, c2 = st.columns([2, 3])
@@ -392,7 +401,7 @@ with tabs[6]:
             link_selections[item['id']] = c2.selectbox(
                 "Source", cat_options,
                 index=cat_options.index(current_name),
-                key=f"kpi_lnk_{_kli}_{item['id']}",
+                key=f"kpi_lnk_{_kli}",  # _kli = enumerate index, always unique
                 label_visibility="collapsed",
             )
         if st.form_submit_button("Save Category Links", type="primary"):
@@ -402,20 +411,20 @@ with tabs[6]:
             st.success("Category links saved.")
             st.rerun()
 
+    # Multiplier rules
     st.divider()
     st.markdown("### KPI Multiplier Rules")
 
     with st.expander("Add New Multiplier Rule"):
-        with st.form("add_rule"):
+        with st.form("add_rule_form"):
             c1, c2, c3, c4 = st.columns(4)
-            r_from  = c1.number_input("Score From", min_value=0.0, step=5.0, value=0.0)
-            r_to    = c2.number_input("Score To",   min_value=0.0, step=5.0, value=80.0)
-            r_mult  = c3.number_input("Multiplier", min_value=0.0, step=0.05, value=1.0)
-            r_unlim = c4.checkbox("Unlimited (no upper bound)")
+            r_from  = c1.number_input("Score From", min_value=0.0, step=5.0,  value=0.0,  key="new_rule_from")
+            r_to    = c2.number_input("Score To",   min_value=0.0, step=5.0,  value=80.0, key="new_rule_to")
+            r_mult  = c3.number_input("Multiplier", min_value=0.0, step=0.05, value=1.0,  key="new_rule_mult")
+            r_unlim = c4.checkbox("Unlimited (no upper bound)", key="new_rule_unlim")
             if st.form_submit_button("Add Rule", type="primary"):
                 _save(add_multiplier_rule, r_from,
-                      None if r_unlim else r_to, r_mult, r_unlim,
-                      ok="Rule added.")
+                      None if r_unlim else r_to, r_mult, r_unlim, ok="Rule added.")
                 st.rerun()
 
     rules = get_multiplier_rules(active_only=False)
@@ -444,22 +453,15 @@ with tabs[6]:
             st.success("Multiplier rules saved.")
             st.rerun()
 
-        del_rule = st.selectbox(
-            "Delete a rule",
-            ["-- select --"] + [
-                f"Score {r['score_from']}-{r['score_to'] or 'max'} | x{r['multiplier']}"
-                for r in rules
-            ],
-            key="del_rule",
-        )
+        rule_labels = [
+            f"Score {r['score_from']}-{r['score_to'] or 'max'} | x{r['multiplier']}"
+            for r in rules
+        ]
+        del_rule = st.selectbox("Delete a rule", ["-- select --"] + rule_labels, key="del_rule_sel")
         if del_rule != "-- select --":
-            idx = [
-                f"Score {r['score_from']}-{r['score_to'] or 'max'} | x{r['multiplier']}"
-                for r in rules
-            ].index(del_rule)
+            idx = rule_labels.index(del_rule)
             if st.button("Delete selected rule", type="secondary", key="do_del_rule"):
-                _save(delete_multiplier_rule, rules[idx]['id'],
-                      ok="Rule deleted.")
+                _save(delete_multiplier_rule, rules[idx]['id'], ok="Rule deleted.")
                 st.rerun()
 
 
@@ -468,11 +470,10 @@ with tabs[7]:
     st.markdown("### Period Settings")
     periods = get_periods()
 
-    with st.form("create_period"):
+    with st.form("create_period_form"):
         c1, c2 = st.columns(2)
-        py = c1.selectbox("Year",    [2024, 2025, 2026, 2027], index=2)
-        pq = c2.selectbox("Quarter", [1, 2, 3, 4], index=1,
-                           format_func=lambda q: f"Q{q}")
+        py = c1.selectbox("Year",    [2024, 2025, 2026, 2027], index=2, key="new_period_y")
+        pq = c2.selectbox("Quarter", [1, 2, 3, 4], index=1, format_func=lambda q: f"Q{q}", key="new_period_q")
         if st.form_submit_button("Create Period", type="primary"):
             get_or_create_period(py, pq)
             st.success(f"Period Q{pq} {py} ready.")
@@ -481,22 +482,20 @@ with tabs[7]:
     for p in periods:
         status  = "LOCKED" if p['is_locked'] else "Open"
         current = " [Current]" if p['is_current'] else ""
-        with st.expander(f"[{status}]{current} - Q{p['quarter']} {p['year']}"):
-            c1, c2, c3 = st.columns(3)
+        with st.expander(f"[{status}]{current}  Q{p['quarter']} {p['year']}"):
+            c1, c2 = st.columns(2)
             if p['is_locked']:
                 if c1.button(f"Unlock Q{p['quarter']} {p['year']}",
                               key=f"unlock_{p['id']}"):
                     unlock_period(p['id'])
-                    log_action("QUARTER_UNLOCK", "period", p['id'],
-                               f"Q{p['quarter']} {p['year']}")
+                    log_action("QUARTER_UNLOCK", "period", p['id'], f"Q{p['quarter']} {p['year']}")
                     st.success("Unlocked.")
                     st.rerun()
             else:
                 if c1.button(f"Lock Q{p['quarter']} {p['year']}",
                               key=f"lock_{p['id']}"):
                     lock_period(p['id'])
-                    log_action("QUARTER_LOCK", "period", p['id'],
-                               f"Q{p['quarter']} {p['year']}")
+                    log_action("QUARTER_LOCK", "period", p['id'], f"Q{p['quarter']} {p['year']}")
                     st.success("Locked.")
                     st.rerun()
             if c2.button("Set as Current", key=f"curr_{p['id']}"):
@@ -511,19 +510,18 @@ with tabs[8]:
     from src.auth import (list_users, create_user, update_user_password,
                            delete_user, is_admin)
     st.markdown("### App Users")
-    st.caption("Manage who can log in. Only admins can access this tab.")
 
     if not is_admin():
         st.warning("Only admins can manage users.")
     else:
         with st.expander("Add New User"):
-            with st.form("add_user"):
+            with st.form("add_user_form"):
                 c1, c2    = st.columns(2)
-                new_uname = c1.text_input("Username *").strip().lower()
-                new_fname = c2.text_input("Full Name")
-                new_pw    = c1.text_input("Password *", type="password")
-                new_pw2   = c2.text_input("Confirm Password *", type="password")
-                new_role  = st.selectbox("Role", ["viewer", "admin"])
+                new_uname = c1.text_input("Username *", key="new_usr_name").strip().lower()
+                new_fname = c2.text_input("Full Name",  key="new_usr_fname")
+                new_pw    = c1.text_input("Password *",         type="password", key="new_usr_pw")
+                new_pw2   = c2.text_input("Confirm Password *", type="password", key="new_usr_pw2")
+                new_role  = st.selectbox("Role", ["viewer", "admin"], key="new_usr_role")
                 if st.form_submit_button("Create User", type="primary"):
                     if not new_uname or not new_pw:
                         st.error("Username and password are required.")
@@ -535,40 +533,36 @@ with tabs[8]:
                               err=f"Username '{new_uname}' already exists.")
 
         users = list_users()
-        if users:
-            st.markdown("#### Current Users")
-            current_user = st.session_state.get('username', '')
-            for _ui, u in enumerate(users):
-                badge = "[Admin]" if u['role'] == 'admin' else "[Viewer]"
-                you   = " (you)" if u['username'] == current_user else ""
-                with st.expander(
-                    f"{badge} {u['username']}{you} "
-                    f"- {u['full_name'] or '-'} - {u['role']}"
-                ):
-                    with st.form(f"usr_edit_{_ui}_{u['id']}"):
-                        np1 = st.text_input("New Password", type="password",
-                                            placeholder="Leave blank to keep current")
-                        np2 = st.text_input("Confirm New Password", type="password")
-                        nr  = st.selectbox("Role", ["viewer", "admin"],
-                                           index=0 if u['role'] == "viewer" else 1)
-                        c1, c2 = st.columns(2)
-                        if c1.form_submit_button("Save", type="primary"):
-                            if np1:
-                                if np1 != np2:
-                                    st.error("Passwords do not match.")
-                                else:
-                                    update_user_password(u['id'], np1)
-                                    st.success("Password updated.")
-                            execute("UPDATE app_users SET role=%s WHERE id=%s",
-                                    (nr, u['id']))
-                            st.success("Saved.")
-                            st.rerun()
-                        if c2.form_submit_button("Delete", type="secondary"):
-                            if u['username'] == current_user:
-                                st.error("Cannot delete your own account.")
+        current_user = st.session_state.get('username', '')
+        for _ui, u in enumerate(users):
+            badge = "[Admin]" if u['role'] == 'admin' else "[Viewer]"
+            you   = " (you)" if u['username'] == current_user else ""
+            with st.expander(f"{badge} {u['username']}{you} — {u['full_name'] or '-'} — {u['role']}"):
+                with st.form(f"usr_edit_{_ui}"):
+                    np1 = st.text_input("New Password",         type="password",
+                                        placeholder="Leave blank to keep current",
+                                        key=f"usr_pw1_{_ui}")
+                    np2 = st.text_input("Confirm New Password", type="password",
+                                        key=f"usr_pw2_{_ui}")
+                    nr  = st.selectbox("Role", ["viewer", "admin"],
+                                       index=0 if u['role'] == "viewer" else 1,
+                                       key=f"usr_role_{_ui}")
+                    c1, c2 = st.columns(2)
+                    if c1.form_submit_button("Save", type="primary"):
+                        if np1:
+                            if np1 != np2:
+                                st.error("Passwords do not match.")
                             else:
-                                _save(delete_user, u['id'],
-                                      ok=f"User '{u['username']}' deleted.")
-                                st.rerun()
+                                update_user_password(u['id'], np1)
+                                st.success("Password updated.")
+                        execute("UPDATE app_users SET role=%s WHERE id=%s", (nr, u['id']))
+                        st.success("Saved.")
+                        st.rerun()
+                    if c2.form_submit_button("Delete", type="secondary"):
+                        if u['username'] == current_user:
+                            st.error("Cannot delete your own account.")
+                        else:
+                            _save(delete_user, u['id'], ok=f"User '{u['username']}' deleted.")
+                            st.rerun()
 
 logout_button()
