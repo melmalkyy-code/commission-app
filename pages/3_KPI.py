@@ -14,11 +14,12 @@ from src.calculations import calc_kpi
 PRIMARY = get_setting('primary_color', '#354f61')
 ACCENT  = get_setting('accent_color', '#f6ba3b')
 st.set_page_config(page_title="KPI Calculation", layout="wide")
-st.markdown(f"<h1 style='color:{PRIMARY}'>🎯 KPI Calculation</h1>", unsafe_allow_html=True)
+st.markdown(f"<h1 style='color:{PRIMARY}'>KPI Calculation</h1>", unsafe_allow_html=True)
 
 col1, col2 = st.columns([1, 1])
 year    = col1.selectbox("Year",    [2024, 2025, 2026, 2027], index=2)
-quarter = col2.selectbox("Quarter", [1, 2, 3, 4],             index=1, format_func=lambda q: f"Q{q}")
+quarter = col2.selectbox("Quarter", [1, 2, 3, 4],             index=1,
+                          format_func=lambda q: f"Q{q}")
 period  = get_or_create_period(year, quarter)
 st.divider()
 
@@ -31,38 +32,60 @@ manual_items = [i for i in kpi_items if not i.get('linked_category_id')]
 
 total_weight = sum(i['weight'] for i in kpi_items)
 if abs(total_weight - 100.0) > 0.01:
-    st.warning(f"⚠️ KPI weights total {total_weight:.1f}% (should be 100%). Fix in ⚙️ Settings → KPI Settings.")
+    st.warning(
+        f"KPI weights total {total_weight:.1f}% (should be 100%). "
+        "Fix in Settings > KPI Settings."
+    )
 
-# ── Auto-calculated items info ────────────────────────────────────────────────
+# ── Auto-calculated items ─────────────────────────────────────────────────────
 if auto_items:
-    with st.expander(f"📊 Auto-Calculated KPI Items ({len(auto_items)} items — from category achievement %)", expanded=False):
-        st.caption("These scores are pulled automatically from actual sales vs target. No manual entry needed.")
+    with st.expander(
+        f"Auto-Calculated KPI Items ({len(auto_items)} items — from category achievement %)",
+        expanded=False,
+    ):
+        st.caption("Scores are pulled automatically from actual sales vs target. No manual entry needed.")
         auto_rows = []
         for sp in salespeople:
-            row = {"Salesperson": sp['name'], "Branch": sp.get('branch_name', '')}
+            row = {
+                "Salesperson": sp['name'],
+                "Branch":      sp.get('branch_name') or '',
+            }
             for item in auto_items:
                 ach = get_category_achievement(period['id'], sp['id'], item['linked_category_id'])
                 row[f"{item['name']} ({item['weight']:.0f}%) [Auto]"] = f"{ach:.1f}%"
             auto_rows.append(row)
         st.dataframe(pd.DataFrame(auto_rows), use_container_width=True, hide_index=True)
 
-# ── Manual KPI entry ─────────────────────────────────────────────────────────
+# ── Manual KPI entry ──────────────────────────────────────────────────────────
 if manual_items:
     st.markdown("**Manual KPI Scores** — Enter scores (0–100) for each item:")
-    st.caption("Auto-linked items (based on category achievement) are shown above — only manual items appear here.")
+    st.caption("Changes are saved automatically as you edit each cell.")
+
+    # Load current DB state for comparison
+    db_scores = {}
+    db_adjs   = {}
+    for sp in salespeople:
+        for item in manual_items:
+            db_scores[(sp['id'], item['id'])] = float(
+                get_kpi_score(period['id'], sp['id'], item['id']) or 0
+            )
+        adj = get_kpi_adjustment(period['id'], sp['id'])
+        db_adjs[sp['id']] = {
+            'bonus':   float(adj.get('bonus_points', 0) or 0),
+            'penalty': float(adj.get('penalty_points', 0) or 0),
+        }
 
     rows = []
     for sp in salespeople:
         row = {
             'Salesperson': sp['name'],
-            'Branch': sp.get('branch_name', ''),
-            '_sp_id': sp['id'],
+            'Branch':      sp.get('branch_name') or '',
+            '_sp_id':      sp['id'],
         }
         for item in manual_items:
-            row[f"{item['name']} ({item['weight']:.0f}%)"] = get_kpi_score(period['id'], sp['id'], item['id'])
-        adj = get_kpi_adjustment(period['id'], sp['id'])
-        row['Bonus pts']   = adj.get('bonus_points', 0) or 0
-        row['Penalty pts'] = adj.get('penalty_points', 0) or 0
+            row[f"{item['name']} ({item['weight']:.0f}%)"] = db_scores[(sp['id'], item['id'])]
+        row['Bonus pts']   = db_adjs[sp['id']]['bonus']
+        row['Penalty pts'] = db_adjs[sp['id']]['penalty']
         rows.append(row)
 
     df = pd.DataFrame(rows)
@@ -87,59 +110,122 @@ if manual_items:
         key="kpi_editor",
     )
 
-    if st.button("💾 Save KPI Scores", type="primary"):
-        for i, row in edited.iterrows():
-            sp = salespeople[i]
+    # ── Auto-save on change ───────────────────────────────────────────────────
+    def _auto_save_kpi():
+        changed = False
+        for idx, row in enumerate(edited.itertuples(index=False)):
+            if idx >= len(salespeople):
+                break
+            sp = salespeople[idx]
             for item in manual_items:
                 col = f"{item['name']} ({item['weight']:.0f}%)"
-                score = float(row.get(col, 0) or 0)
-                save_kpi_score(period['id'], sp['id'], item['id'], min(score, item['max_score']))
-            bonus   = float(row.get('Bonus pts', 0) or 0)
-            penalty = float(row.get('Penalty pts', 0) or 0)
-            save_kpi_adjustment(period['id'], sp['id'], bonus, penalty)
-        log_action("KPI_SAVE_ALL", "kpi_records", None, f"Q{quarter} {year}", username="manager")
-        st.success("✅ KPI scores saved.")
+                raw = getattr(row, col.replace(' ', '_').replace('(', '').replace(')', '').replace('%', 'pct'), None)
+                try:
+                    val = 0.0 if (raw is None or pd.isna(raw)) else float(raw)
+                except Exception:
+                    val = 0.0
+                val = min(val, item['max_score'])
+                if abs(val - db_scores[(sp['id'], item['id'])]) > 0.001:
+                    save_kpi_score(period['id'], sp['id'], item['id'], val)
+                    changed = True
+
+            # Check adjustments
+            try:
+                raw_b = getattr(row, 'Bonus_pts', None)
+                raw_p = getattr(row, 'Penalty_pts', None)
+                bonus   = 0.0 if (raw_b is None or pd.isna(raw_b)) else float(raw_b)
+                penalty = 0.0 if (raw_p is None or pd.isna(raw_p)) else float(raw_p)
+            except Exception:
+                bonus, penalty = 0.0, 0.0
+
+            prev = db_adjs[sp['id']]
+            if abs(bonus - prev['bonus']) > 0.001 or abs(penalty - prev['penalty']) > 0.001:
+                save_kpi_adjustment(period['id'], sp['id'], bonus, penalty)
+                changed = True
+
+        if changed:
+            st.cache_data.clear()
+            st.toast("KPI changes saved", icon="✅")
+
+    _auto_save_kpi()
+
+    # Explicit save button as fallback
+    if st.button("Save KPI Scores", type="primary"):
+        for idx, row in enumerate(edited.itertuples(index=False)):
+            if idx >= len(salespeople):
+                break
+            sp = salespeople[idx]
+            for item in manual_items:
+                col = f"{item['name']} ({item['weight']:.0f}%)"
+                try:
+                    raw = getattr(row, col.replace(' ', '_').replace('(', '').replace(')', '').replace('%', 'pct'), 0)
+                    val = min(float(raw or 0), item['max_score'])
+                except Exception:
+                    val = 0.0
+                save_kpi_score(period['id'], sp['id'], item['id'], val)
+            try:
+                raw_b = getattr(row, 'Bonus_pts', 0)
+                raw_p = getattr(row, 'Penalty_pts', 0)
+                save_kpi_adjustment(period['id'], sp['id'],
+                                    float(raw_b or 0), float(raw_p or 0))
+            except Exception:
+                pass
+        log_action("KPI_SAVE_ALL", "kpi_records", notes=f"Q{quarter} {year}")
+        st.cache_data.clear()
+        st.success("KPI scores saved.")
         st.rerun()
+
 else:
-    st.info("ℹ️ All KPI items are linked to categories and auto-calculated. No manual entry needed.")
-    # Still allow adjustments
+    st.info("All KPI items are linked to categories and auto-calculated. No manual entry needed.")
     st.markdown("**Bonus / Penalty Adjustments:**")
     adj_rows = []
     for sp in salespeople:
         adj = get_kpi_adjustment(period['id'], sp['id'])
         adj_rows.append({
-            'Salesperson': sp['name'], 'Branch': sp.get('branch_name', ''),
-            '_sp_id': sp['id'],
-            'Bonus pts': adj.get('bonus_points', 0) or 0,
-            'Penalty pts': adj.get('penalty_points', 0) or 0,
+            'Salesperson': sp['name'],
+            'Branch':      sp.get('branch_name') or '',
+            '_sp_id':      sp['id'],
+            'Bonus pts':   float(adj.get('bonus_points', 0) or 0),
+            'Penalty pts': float(adj.get('penalty_points', 0) or 0),
         })
-    adj_df = pd.DataFrame(adj_rows)[['Salesperson', 'Branch', 'Bonus pts', 'Penalty pts']]
-    edited_adj = st.data_editor(adj_df, use_container_width=True, disabled=['Salesperson', 'Branch'],
-                                 hide_index=True, key="adj_editor")
-    if st.button("💾 Save Adjustments", type="primary"):
-        for i, row in edited_adj.iterrows():
-            sp = salespeople[i]
-            save_kpi_adjustment(period['id'], sp['id'],
-                                float(row.get('Bonus pts', 0) or 0),
-                                float(row.get('Penalty pts', 0) or 0))
-        st.success("✅ Adjustments saved.")
+    adj_df     = pd.DataFrame(adj_rows)[['Salesperson', 'Branch', 'Bonus pts', 'Penalty pts']]
+    edited_adj = st.data_editor(
+        adj_df, use_container_width=True,
+        disabled=['Salesperson', 'Branch'],
+        hide_index=True, key="adj_editor",
+    )
+    if st.button("Save Adjustments", type="primary"):
+        for idx, row in enumerate(edited_adj.itertuples(index=False)):
+            if idx >= len(salespeople):
+                break
+            sp = salespeople[idx]
+            try:
+                save_kpi_adjustment(
+                    period['id'], sp['id'],
+                    float(row.Bonus_pts or 0),
+                    float(row.Penalty_pts or 0),
+                )
+            except Exception:
+                pass
+        st.cache_data.clear()
+        st.success("Adjustments saved.")
         st.rerun()
 
 # ── KPI Results Preview ───────────────────────────────────────────────────────
 st.divider()
-st.markdown("#### 📊 KPI Results Preview")
+st.markdown("#### KPI Results Preview")
 
 result_rows = []
 for sp in salespeople:
     kpi = calc_kpi(period['id'], sp['id'])
     result_rows.append({
         "Salesperson":     sp['name'],
-        "Branch":          sp.get('branch_name', ''),
+        "Branch":          sp.get('branch_name') or '',
         "Weighted Score":  f"{kpi['weighted_score']:.2f}",
         "Bonus":           f"+{kpi['bonus']:.1f}",
         "Penalty":         f"-{kpi['penalty']:.1f}",
         "Final KPI Score": kpi['final_score'],
-        "KPI Multiplier":  f"× {kpi['multiplier']}",
+        "KPI Multiplier":  f"x {kpi['multiplier']}",
     })
 
 st.dataframe(
@@ -150,11 +236,11 @@ st.dataframe(
         "Final KPI Score": st.column_config.ProgressColumn(
             "Final KPI Score", min_value=0, max_value=120, format="%.2f",
         )
-    }
+    },
 )
 
-# ── Per-item breakdown expander ───────────────────────────────────────────────
-with st.expander("🔍 Detailed Item Breakdown (per salesperson)"):
+# ── Per-item breakdown ────────────────────────────────────────────────────────
+with st.expander("Detailed Item Breakdown (per salesperson)"):
     sp_names = [sp['name'] for sp in salespeople]
     sel = st.selectbox("Salesperson", sp_names, key="kpi_detail_sp")
     sel_sp = next((sp for sp in salespeople if sp['name'] == sel), None)
@@ -165,18 +251,17 @@ with st.expander("🔍 Detailed Item Breakdown (per salesperson)"):
             detail_rows.append({
                 "KPI Item":     d['name'],
                 "Weight %":     f"{d['weight']:.0f}%",
-                "Source":       f"🤖 Auto ({d.get('linked_category_name','?')})" if d.get('is_auto') else "✏️ Manual",
+                "Source":       f"Auto ({d.get('linked_category_name', '?')})" if d.get('is_auto') else "Manual",
                 "Raw Score":    f"{d['raw_score']:.1f}",
                 "Normalized":   f"{d['normalized']:.1f}%",
                 "Contribution": f"{d['contribution']:.2f}",
             })
         st.dataframe(pd.DataFrame(detail_rows), use_container_width=True, hide_index=True)
-        st.markdown(f"""
-| | |
-|---|---|
-| Weighted Score | **{kpi['weighted_score']:.2f}** |
-| Bonus | **+{kpi['bonus']:.1f}** |
-| Penalty | **-{kpi['penalty']:.1f}** |
-| **Final KPI Score** | **{kpi['final_score']:.2f}** |
-| **Multiplier** | **× {kpi['multiplier']}** |
-""")
+        c1, c2 = st.columns(2)
+        c1.metric("Weighted Score", f"{kpi['weighted_score']:.2f}")
+        c1.metric("Bonus",          f"+{kpi['bonus']:.1f}")
+        c1.metric("Penalty",        f"-{kpi['penalty']:.1f}")
+        c2.metric("Final KPI Score", f"{kpi['final_score']:.2f}")
+        c2.metric("KPI Multiplier",  f"x {kpi['multiplier']}")
+
+logout_button()

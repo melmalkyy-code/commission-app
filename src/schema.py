@@ -143,6 +143,15 @@ TABLES = [
         is_active     INTEGER DEFAULT 1,
         created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""",
+    # Cookie-based auth sessions — token is a UUID4 string
+    """CREATE TABLE IF NOT EXISTS sessions (
+        token      TEXT PRIMARY KEY,
+        user_id    INTEGER NOT NULL,
+        username   TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        is_active  INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""",
 ]
 
 

@@ -2,29 +2,33 @@ from __future__ import annotations
 """
 Database abstraction layer.
 PostgreSQL (Supabase) in production, SQLite fallback for local dev.
+
+Connection strategy:
+- PostgreSQL: one psycopg2 connection per thread, re-opened if closed.
+  If PG fails at CONNECT time, fall back to SQLite for that thread but
+  keep _DB_URL so future threads can retry — never permanently disable PG.
+- SQLite: local file, WAL mode, always available.
 """
 import os
 import threading
 from typing import Any
 
-_local = threading.local()
-_IS_POSTGRES = False
-_DB_URL = None
-_backend_detected = False
+_local    = threading.local()
+_DB_URL   = None
+_detected = False
 
 
 def _detect_backend():
-    global _IS_POSTGRES, _DB_URL, _backend_detected
-    if _backend_detected:
+    global _DB_URL, _detected
+    if _detected:
         return
-    _backend_detected = True
+    _detected = True
 
-    # Try Streamlit secrets — multiple access patterns for robustness
     try:
         import streamlit as st
         url = ""
         try:
-            url = st.secrets["database"]["url"]          # direct key access
+            url = st.secrets["database"]["url"]
         except Exception:
             try:
                 url = st.secrets.get("database", {}).get("url", "")
@@ -34,23 +38,22 @@ def _detect_backend():
         if url and ("postgresql" in url or "postgres" in url):
             if "sslmode" not in url:
                 url += ("&" if "?" in url else "?") + "sslmode=require"
-            _IS_POSTGRES = True
             _DB_URL = url
             return
     except Exception:
         pass
 
-    # Try DATABASE_URL environment variable
     env_url = os.environ.get("DATABASE_URL", "").strip()
     if env_url and ("postgresql" in env_url or "postgres" in env_url):
         if "sslmode" not in env_url:
             env_url += ("&" if "?" in env_url else "?") + "sslmode=require"
-        _IS_POSTGRES = True
         _DB_URL = env_url
 
 
 def _open_sqlite():
     import sqlite3
+    # On Streamlit Cloud, /home/adminuser exists; use /tmp for ephemeral writable storage.
+    # For local dev, use the data/ directory next to this file.
     if os.path.exists('/home/adminuser'):
         db_path = '/tmp/commission_web.db'
     else:
@@ -58,59 +61,79 @@ def _open_sqlite():
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
     conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    # Note: foreign_keys OFF (default) to avoid FK errors during seed on SQLite
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
 
+def _pg_connect():
+    """Open a fresh psycopg2 connection. Returns None if unavailable."""
+    if not _DB_URL:
+        return None
+    try:
+        import psycopg2
+        conn = psycopg2.connect(_DB_URL)
+        conn.autocommit = True
+        return conn
+    except Exception:
+        return None
+
+
 def get_conn():
-    global _IS_POSTGRES
+    """Return a live connection (PostgreSQL preferred, SQLite fallback)."""
     _detect_backend()
 
-    conn = getattr(_local, 'conn', None)
+    conn  = getattr(_local, 'conn', None)
     is_pg = getattr(_local, 'is_pg', False)
 
-    if conn is None or (is_pg and getattr(conn, 'closed', 0) != 0):
-        if _IS_POSTGRES:
-            # Try psycopg2 (C extension, best performance and Python 3.x compatibility)
-            try:
-                import psycopg2
-                conn = psycopg2.connect(_DB_URL)
-                conn.autocommit = True
-                _local.conn = conn
-                _local.is_pg = True
-                return conn
-            except ImportError:
-                _IS_POSTGRES = False
-                _local.is_pg = False
-            except Exception:
-                _IS_POSTGRES = False
-                _local.is_pg = False
-
-        _local.conn = _open_sqlite()
+    # Reuse existing PG connection if still open
+    if conn is not None and is_pg:
+        if getattr(conn, 'closed', 1) == 0:
+            return conn
+        # Connection was closed — try to reconnect
+        conn = _pg_connect()
+        if conn:
+            _local.conn  = conn
+            _local.is_pg = True
+            return conn
+        # PG unavailable right now — use SQLite for this request only
+        _local.conn  = _open_sqlite()
         _local.is_pg = False
+        return _local.conn
 
+    # Reuse existing SQLite connection
+    if conn is not None and not is_pg:
+        return conn
+
+    # First call in this thread — prefer PG if configured
+    if _DB_URL:
+        pg = _pg_connect()
+        if pg:
+            _local.conn  = pg
+            _local.is_pg = True
+            return pg
+
+    # SQLite fallback
+    _local.conn  = _open_sqlite()
+    _local.is_pg = False
     return _local.conn
 
 
 def _adapt_sql(sql: str) -> str:
+    """Replace %s → ? for SQLite."""
     return sql if getattr(_local, 'is_pg', False) else sql.replace('%s', '?')
 
 
-def _fallback_to_sqlite():
-    """Mark PG as unusable and open a fresh SQLite connection."""
-    global _IS_POSTGRES
-    _IS_POSTGRES = False
+def _thread_fallback_to_sqlite():
+    """Switch the CURRENT THREAD to SQLite. PG can still be retried next request."""
     _local.is_pg = False
-    _local.conn = _open_sqlite()
+    _local.conn  = _open_sqlite()
 
 
 def execute(sql: str, params: tuple = ()) -> Any:
-    global _IS_POSTGRES
-    conn = get_conn()
+    conn    = get_conn()
     adapted = _adapt_sql(sql)
-    is_pg = getattr(_local, 'is_pg', False)
-    cur = conn.cursor()
+    is_pg   = getattr(_local, 'is_pg', False)
+    cur     = conn.cursor()
     try:
         cur.execute(adapted, params)
         if not is_pg:
@@ -123,10 +146,10 @@ def execute(sql: str, params: tuple = ()) -> Any:
             except Exception:
                 pass
             raise
-        # pg8000 / psycopg2 failed during execute — fall back to SQLite
-        _fallback_to_sqlite()
+        # PostgreSQL failed mid-query — fall back to SQLite for this thread
+        _thread_fallback_to_sqlite()
         adapted2 = sql.replace('%s', '?')
-        cur2 = _local.conn.cursor()
+        cur2     = _local.conn.cursor()
         try:
             cur2.execute(adapted2, params)
             _local.conn.commit()
@@ -140,10 +163,9 @@ def execute(sql: str, params: tuple = ()) -> Any:
 
 
 def fetchall(sql: str, params: tuple = ()) -> list:
-    global _IS_POSTGRES
-    conn = get_conn()
+    conn    = get_conn()
     adapted = _adapt_sql(sql)
-    is_pg = getattr(_local, 'is_pg', False)
+    is_pg   = getattr(_local, 'is_pg', False)
     try:
         cur = conn.cursor()
         cur.execute(adapted, params)
@@ -159,12 +181,11 @@ def fetchall(sql: str, params: tuple = ()) -> list:
     except Exception:
         if not is_pg:
             raise
-        # pg8000 / psycopg2 failed during execute — fall back to SQLite
-        _fallback_to_sqlite()
+        _thread_fallback_to_sqlite()
         adapted2 = sql.replace('%s', '?')
-        cur2 = _local.conn.cursor()
+        cur2     = _local.conn.cursor()
         cur2.execute(adapted2, params)
-        rows2 = cur2.fetchall()
+        rows2    = cur2.fetchall()
         try:
             return [dict(row) for row in rows2]
         except Exception:
@@ -185,4 +206,4 @@ def lastrowid(cur) -> int:
 
 def is_postgres() -> bool:
     _detect_backend()
-    return _IS_POSTGRES
+    return bool(_DB_URL) and getattr(_local, 'is_pg', False)

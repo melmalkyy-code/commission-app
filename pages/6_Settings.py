@@ -72,7 +72,7 @@ with tabs[0]:
                 set_setting(k, v)
             log_action("SETTINGS_CHANGE", "settings", notes="Branding updated")
             st.cache_data.clear()
-            st.success("Branding saved! Reload the page to see color changes.")
+            st.rerun()  # Rerun so PRIMARY updates immediately with new color
 
 
 # ── BRANCHES ─────────────────────────────────────────────────────────────────
