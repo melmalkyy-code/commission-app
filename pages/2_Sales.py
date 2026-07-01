@@ -82,20 +82,22 @@ edited = st.data_editor(
 )
 
 # ── Auto-save on cell change ──────────────────────────────────────────────────
+def _read_row_val(row, col_name: str) -> float:
+    """Read a value from an iterrows() Series by exact column name, returning 0.0 on null."""
+    raw = row.get(col_name)
+    try:
+        return 0.0 if (raw is None or pd.isna(raw)) else float(raw)
+    except Exception:
+        return 0.0
+
 def _auto_save_sales():
-    """Compare editor output against DB state; save any differences."""
     current_map = {}
-    for idx, row in enumerate(edited.itertuples(index=False)):
+    for idx, (_, row) in enumerate(edited.iterrows()):
         if idx >= len(salespeople):
             break
         sp = salespeople[idx]
         for cat in categories:
-            raw = getattr(row, cat['name'].replace(' ', '_').replace('-', '_'), None)
-            try:
-                val = 0.0 if (raw is None or (isinstance(raw, float) and pd.isna(raw))) else float(raw)
-            except Exception:
-                val = 0.0
-            current_map[(sp['id'], cat['id'])] = val
+            current_map[(sp['id'], cat['id'])] = _read_row_val(row, cat['name'])
 
     if current_map != sales_map:
         for (sp_id, cat_id), val in current_map.items():
@@ -106,19 +108,14 @@ def _auto_save_sales():
 
 _auto_save_sales()
 
-# Keep a manual save button as a fallback / explicit action
+# Manual save button as explicit confirmation / fallback
 if st.button("Save All Changes", type="primary"):
-    for idx, row in enumerate(edited.itertuples(index=False)):
+    for idx, (_, row) in enumerate(edited.iterrows()):
         if idx >= len(salespeople):
             break
         sp = salespeople[idx]
         for cat in categories:
-            raw = getattr(row, cat['name'].replace(' ', '_').replace('-', '_'), None)
-            try:
-                val = 0.0 if (raw is None or (isinstance(raw, float) and pd.isna(raw))) else float(raw)
-            except Exception:
-                val = 0.0
-            save_sale(period['id'], sp['id'], cat['id'], val)
+            save_sale(period['id'], sp['id'], cat['id'], _read_row_val(row, cat['name']))
     log_action("SALES_SAVE_ALL", "sales_records", notes=f"Q{quarter} {year}")
     st.cache_data.clear()
     st.success(f"Saved all sales records for Q{quarter} {year}.")

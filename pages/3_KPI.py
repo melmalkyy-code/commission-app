@@ -111,34 +111,30 @@ if manual_items:
     )
 
     # ── Auto-save on change ───────────────────────────────────────────────────
+    def _safe_float(series_row, col: str, default=0.0) -> float:
+        """Read a value from an iterrows() Series by exact column name."""
+        raw = series_row.get(col)
+        try:
+            return default if (raw is None or pd.isna(raw)) else float(raw)
+        except Exception:
+            return default
+
     def _auto_save_kpi():
         changed = False
-        for idx, row in enumerate(edited.itertuples(index=False)):
+        for idx, (_, row) in enumerate(edited.iterrows()):
             if idx >= len(salespeople):
                 break
             sp = salespeople[idx]
             for item in manual_items:
                 col = f"{item['name']} ({item['weight']:.0f}%)"
-                raw = getattr(row, col.replace(' ', '_').replace('(', '').replace(')', '').replace('%', 'pct'), None)
-                try:
-                    val = 0.0 if (raw is None or pd.isna(raw)) else float(raw)
-                except Exception:
-                    val = 0.0
-                val = min(val, item['max_score'])
+                val = min(_safe_float(row, col), item['max_score'])
                 if abs(val - db_scores[(sp['id'], item['id'])]) > 0.001:
                     save_kpi_score(period['id'], sp['id'], item['id'], val)
                     changed = True
 
-            # Check adjustments
-            try:
-                raw_b = getattr(row, 'Bonus_pts', None)
-                raw_p = getattr(row, 'Penalty_pts', None)
-                bonus   = 0.0 if (raw_b is None or pd.isna(raw_b)) else float(raw_b)
-                penalty = 0.0 if (raw_p is None or pd.isna(raw_p)) else float(raw_p)
-            except Exception:
-                bonus, penalty = 0.0, 0.0
-
-            prev = db_adjs[sp['id']]
+            bonus   = _safe_float(row, 'Bonus pts')
+            penalty = _safe_float(row, 'Penalty pts')
+            prev    = db_adjs[sp['id']]
             if abs(bonus - prev['bonus']) > 0.001 or abs(penalty - prev['penalty']) > 0.001:
                 save_kpi_adjustment(period['id'], sp['id'], bonus, penalty)
                 changed = True
@@ -151,25 +147,19 @@ if manual_items:
 
     # Explicit save button as fallback
     if st.button("Save KPI Scores", type="primary"):
-        for idx, row in enumerate(edited.itertuples(index=False)):
+        for idx, (_, row) in enumerate(edited.iterrows()):
             if idx >= len(salespeople):
                 break
             sp = salespeople[idx]
             for item in manual_items:
                 col = f"{item['name']} ({item['weight']:.0f}%)"
-                try:
-                    raw = getattr(row, col.replace(' ', '_').replace('(', '').replace(')', '').replace('%', 'pct'), 0)
-                    val = min(float(raw or 0), item['max_score'])
-                except Exception:
-                    val = 0.0
+                val = min(_safe_float(row, col), item['max_score'])
                 save_kpi_score(period['id'], sp['id'], item['id'], val)
-            try:
-                raw_b = getattr(row, 'Bonus_pts', 0)
-                raw_p = getattr(row, 'Penalty_pts', 0)
-                save_kpi_adjustment(period['id'], sp['id'],
-                                    float(raw_b or 0), float(raw_p or 0))
-            except Exception:
-                pass
+            save_kpi_adjustment(
+                period['id'], sp['id'],
+                _safe_float(row, 'Bonus pts'),
+                _safe_float(row, 'Penalty pts'),
+            )
         log_action("KPI_SAVE_ALL", "kpi_records", notes=f"Q{quarter} {year}")
         st.cache_data.clear()
         st.success("KPI scores saved.")
