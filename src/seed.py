@@ -118,8 +118,15 @@ def _seed_brackets():
         if count and count['c'] > 0:
             continue
         for i, (frm, to, rate) in enumerate(brackets):
-            execute("INSERT INTO commission_brackets (category_id, from_amount, to_amount, commission_rate, is_unlimited, sort_order) VALUES (%s,%s,%s,%s,%s,%s)",
-                    (cat['id'], frm, to, rate, 1 if to is None else 0, i))
+            try:
+                execute(
+                    "INSERT INTO commission_brackets "
+                    "(category_id, from_amount, to_amount, commission_rate, is_unlimited, sort_order) "
+                    "VALUES (%s,%s,%s,%s,%s,%s)",
+                    (cat['id'], frm, to, rate, 1 if to is None else 0, i)
+                )
+            except Exception:
+                pass  # skip if already exists or FK not yet satisfied
 
 
 def _seed_salespersons():

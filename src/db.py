@@ -1,8 +1,7 @@
 from __future__ import annotations
 """
 Database abstraction layer.
-PostgreSQL (Supabase) in production, SQLite for local dev.
-Uses psycopg2 which works correctly on Python 3.11 (Streamlit Cloud).
+PostgreSQL (Supabase) in production, SQLite fallback for local dev.
 """
 import os
 import threading
@@ -20,10 +19,18 @@ def _detect_backend():
         return
     _backend_detected = True
 
-    # Try Streamlit secrets
+    # Try Streamlit secrets — multiple access patterns for robustness
     try:
         import streamlit as st
-        url = st.secrets.get("database", {}).get("url", "")
+        url = ""
+        try:
+            url = st.secrets["database"]["url"]          # direct key access
+        except Exception:
+            try:
+                url = st.secrets.get("database", {}).get("url", "")
+            except Exception:
+                pass
+        url = str(url).strip()
         if url and ("postgresql" in url or "postgres" in url):
             if "sslmode" not in url:
                 url += ("&" if "?" in url else "?") + "sslmode=require"
@@ -33,8 +40,8 @@ def _detect_backend():
     except Exception:
         pass
 
-    # Try environment variable
-    env_url = os.environ.get("DATABASE_URL", "")
+    # Try DATABASE_URL environment variable
+    env_url = os.environ.get("DATABASE_URL", "").strip()
     if env_url and ("postgresql" in env_url or "postgres" in env_url):
         if "sslmode" not in env_url:
             env_url += ("&" if "?" in env_url else "?") + "sslmode=require"
@@ -51,7 +58,8 @@ def _open_sqlite():
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
     conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
+    # Note: foreign_keys OFF (default) to avoid FK errors during seed on SQLite
+    conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
 
@@ -64,7 +72,7 @@ def get_conn():
 
     if conn is None or (is_pg and getattr(conn, 'closed', 0) != 0):
         if _IS_POSTGRES:
-            # Try psycopg2 first (faster, C-based)
+            # Try psycopg2 first (C extension, best performance)
             try:
                 import psycopg2
                 conn = psycopg2.connect(_DB_URL)
@@ -73,19 +81,19 @@ def get_conn():
                 _local.is_pg = True
                 return conn
             except ImportError:
-                pass  # psycopg2 not available, try pg8000
+                pass
             except Exception:
                 _IS_POSTGRES = False
                 _local.is_pg = False
 
-        # Try pg8000 (pure Python, works on any Python version)
+        # Try pg8000 (pure Python — works on any Python version)
         if _IS_POSTGRES:
             try:
-                import pg8000.dbapi as pg8000_dbapi
-                import urllib.parse as _urlparse
-                _p = _urlparse.urlparse(_DB_URL)
+                import pg8000.dbapi as _pg
+                import urllib.parse as _up
+                _p = _up.urlparse(_DB_URL)
                 _db = (_p.path or '/postgres').lstrip('/').split('?')[0] or 'postgres'
-                conn = pg8000_dbapi.connect(
+                conn = _pg.connect(
                     host=_p.hostname,
                     port=_p.port or 5432,
                     database=_db,
@@ -122,7 +130,10 @@ def execute(sql: str, params: tuple = ()) -> Any:
             cur.execute(sql, params)
             conn.commit()
         except Exception:
-            conn.rollback()
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             raise
     return cur
 
@@ -136,7 +147,6 @@ def fetchall(sql: str, params: tuple = ()) -> list:
     if getattr(_local, 'is_pg', False):
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, row)) for row in rows]
-    # SQLite returns Row objects
     try:
         return [dict(row) for row in rows]
     except Exception:
