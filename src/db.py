@@ -72,7 +72,7 @@ def get_conn():
 
     if conn is None or (is_pg and getattr(conn, 'closed', 0) != 0):
         if _IS_POSTGRES:
-            # Try psycopg2 first (C extension, best performance)
+            # Try psycopg2 (C extension, best performance and Python 3.x compatibility)
             try:
                 import psycopg2
                 conn = psycopg2.connect(_DB_URL)
@@ -81,30 +81,8 @@ def get_conn():
                 _local.is_pg = True
                 return conn
             except ImportError:
-                pass
-            except Exception:
                 _IS_POSTGRES = False
                 _local.is_pg = False
-
-        # Try pg8000 (pure Python — works on any Python version)
-        if _IS_POSTGRES:
-            try:
-                import pg8000.dbapi as _pg
-                import urllib.parse as _up
-                _p = _up.urlparse(_DB_URL)
-                _db = (_p.path or '/postgres').lstrip('/').split('?')[0] or 'postgres'
-                conn = _pg.connect(
-                    host=_p.hostname,
-                    port=_p.port or 5432,
-                    database=_db,
-                    user=_p.username,
-                    password=_p.password,
-                    ssl_context=True,
-                )
-                conn.autocommit = True
-                _local.conn = conn
-                _local.is_pg = True
-                return conn
             except Exception:
                 _IS_POSTGRES = False
                 _local.is_pg = False

@@ -321,7 +321,7 @@ with tabs[6]:
 
     with st.form("kpi_category_links"):
         link_selections = {}
-        for item in kpi_items:
+        for _kli, item in enumerate(kpi_items):
             c1, c2 = st.columns([2, 3])
             c1.markdown(f"**{item['name']}** ({item['weight']:.0f}%)")
             current_name = item.get('linked_category_name') or "Manual - Enter Score"
@@ -330,7 +330,7 @@ with tabs[6]:
             idx = cat_options.index(current_name)
             link_selections[item['id']] = c2.selectbox(
                 "Source", cat_options, index=idx,
-                key=f"link_{item['id']}", label_visibility="collapsed"
+                key=f"kpi_lnk_{_kli}_{item['id']}", label_visibility="collapsed"
             )
         if st.form_submit_button("Save Category Links", type="primary"):
             for item_id, selected_name in link_selections.items():
