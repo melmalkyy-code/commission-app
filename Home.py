@@ -6,10 +6,10 @@ import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 
 import streamlit as st
-from src.schema import create_schema
-from src.seed   import seed
+from src.startup import init_db
 from src.models import get_setting, get_periods, get_or_create_period
 from src.calculations import calc_all_commissions, get_totals
+from src.auth import require_login, logout_button
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -19,14 +19,8 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── DB init (runs once per session) ──────────────────────────────────────────
-@st.cache_resource
-def init_db():
-    create_schema()
-    seed()
-    return True
-
-init_db()
+init_db()   # no-op after first run (cached)
+require_login()
 
 # ── Sidebar branding ──────────────────────────────────────────────────────────
 PRIMARY = get_setting('primary_color', '#354f61')
@@ -66,9 +60,13 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 st.divider()
 
+@st.cache_data(ttl=60, show_spinner=False)
+def _load_commissions(period_id):
+    c = calc_all_commissions(period_id)
+    return c, get_totals(c)
+
 with st.spinner("Calculating commissions..."):
-    commissions = calc_all_commissions(period['id'])
-    totals      = get_totals(commissions)
+    commissions, totals = _load_commissions(period['id'])
 
 # ── KPI metric cards ──────────────────────────────────────────────────────────
 c1, c2, c3, c4, c5 = st.columns(5)
@@ -141,7 +139,9 @@ with col_top5:
 with col_pie:
     st.markdown("#### Sales by Category")
     from src.models import get_sales
-    all_sales = get_sales(period['id'])
+    @st.cache_data(ttl=60, show_spinner=False)
+    def _load_sales(pid): return get_sales(pid)
+    all_sales = _load_sales(period['id'])
     if all_sales:
         cat_totals = {}
         for r in all_sales:
@@ -179,4 +179,5 @@ if commissions:
     st.dataframe(df_br, use_container_width=True, hide_index=True)
 
 st.sidebar.markdown("---")
+logout_button()
 st.sidebar.caption(f"v1.0.0 · {company}")

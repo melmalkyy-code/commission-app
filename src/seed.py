@@ -1,4 +1,5 @@
-from src.db import execute, fetchone, fetchall
+﻿from __future__ import annotations
+from src.db import execute, fetchone, fetchall, is_postgres
 
 
 def seed():
@@ -11,15 +12,23 @@ def seed():
     _seed_salespersons()
     _seed_period()
     _seed_sample_data()
+    from src.auth import ensure_default_admin
+    ensure_default_admin()
 
 
 def _ins_ignore(table, cols, vals, conflict_col=None):
+    """Insert ignoring conflicts — works on both PostgreSQL and SQLite."""
     placeholders = ', '.join(['%s'] * len(vals))
     col_str = ', '.join(cols)
-    if conflict_col:
-        sql = f"INSERT INTO {table} ({col_str}) VALUES ({placeholders}) ON CONFLICT ({conflict_col}) DO NOTHING"
+    if is_postgres():
+        # PostgreSQL: use ON CONFLICT ... DO NOTHING
+        if conflict_col:
+            sql = f"INSERT INTO {table} ({col_str}) VALUES ({placeholders}) ON CONFLICT ({conflict_col}) DO NOTHING"
+        else:
+            sql = f"INSERT INTO {table} ({col_str}) VALUES ({placeholders}) ON CONFLICT DO NOTHING"
     else:
-        sql = f"INSERT INTO {table} ({col_str}) VALUES ({placeholders}) ON CONFLICT DO NOTHING"
+        # SQLite: INSERT OR IGNORE handles ALL constraint types including multi-column UNIQUE
+        sql = f"INSERT OR IGNORE INTO {table} ({col_str}) VALUES ({placeholders})"
     execute(sql, tuple(vals))
 
 
@@ -29,8 +38,8 @@ def _seed_settings():
         'primary_color':  '#354f61',
         'accent_color':   '#f6ba3b',
         'bg_color':       '#ffffff',
-        'report_header':  'Surveying Experts — Quarterly Sales Commission Report',
-        'report_footer':  'Confidential — For Internal Use Only',
+        'report_header':  'Surveying Experts "” Quarterly Sales Commission Report',
+        'report_footer':  'Confidential "” For Internal Use Only',
         'company_website':'www.surveyingexperts.com',
         'company_phone':  '',
         'global_calc_method': 'flat',
@@ -182,3 +191,4 @@ def _seed_sample_data():
                     "INSERT INTO kpi_records (period_id, salesperson_id, kpi_item_id, score) VALUES (%s,%s,%s,%s) ON CONFLICT (period_id, salesperson_id, kpi_item_id) DO NOTHING",
                     (period['id'], sp['id'], item['id'], score)
                 )
+

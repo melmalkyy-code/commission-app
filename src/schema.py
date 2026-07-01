@@ -1,3 +1,4 @@
+﻿from __future__ import annotations
 from src.db import execute, is_postgres
 
 
@@ -133,11 +134,30 @@ TABLES = [
         notes       TEXT,
         username    TEXT DEFAULT 'user'
     )""",
+    """CREATE TABLE IF NOT EXISTS app_users (
+        id            {serial},
+        username      TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        full_name     TEXT,
+        role          TEXT DEFAULT 'viewer',
+        is_active     INTEGER DEFAULT 1,
+        created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""",
 ]
 
 
+def _add_column_if_missing(table: str, column: str, col_type: str):
+    try:
+        execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+    except Exception:
+        pass  # column already exists
+
+
 def create_schema():
-    serial_def = "id SERIAL PRIMARY KEY" if is_postgres() else "id INTEGER PRIMARY KEY AUTOINCREMENT"
+    serial_def = "SERIAL PRIMARY KEY" if is_postgres() else "INTEGER PRIMARY KEY AUTOINCREMENT"
     for tbl in TABLES:
         sql = tbl.replace("{serial}", serial_def)
         execute(sql)
+    # Migrations — idempotent column additions
+    _add_column_if_missing("kpi_items", "linked_category_id", "INTEGER")
+

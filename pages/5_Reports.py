@@ -1,5 +1,7 @@
 import sys, os, io; sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import streamlit as st
+from src.auth import require_login, logout_button
+require_login()
 import pandas as pd
 from src.models import get_setting, get_or_create_period, get_branches, get_salespersons
 from src.calculations import calc_all_commissions, get_totals
@@ -8,7 +10,7 @@ PRIMARY = get_setting('primary_color', '#354f61')
 ACCENT  = get_setting('accent_color', '#f6ba3b')
 COMPANY = get_setting('company_name', 'Surveying Experts')
 st.set_page_config(page_title="Reports Center", layout="wide")
-st.markdown(f"<h1 style='color:{PRIMARY}'>📄 Reports Center</h1>", unsafe_allow_html=True)
+st.markdown(f"<h1 style='color:{PRIMARY}'>?? Reports Center</h1>", unsafe_allow_html=True)
 
 col1, col2 = st.columns([1, 1])
 year    = col1.selectbox("Year",    [2024, 2025, 2026, 2027], index=2)
@@ -31,7 +33,7 @@ def make_excel_company() -> bytes:
     ws = wb.active; ws.title = "Company Summary"
     fill = PatternFill(start_color="354f61", end_color="354f61", fill_type="solid")
     hdr_font = Font(color="FFFFFF", bold=True)
-    ws.append([COMPANY, "", f"Company Commission Report — {period_label}"])
+    ws.append([COMPANY, "", f"Company Commission Report � {period_label}"])
     for c in ws[1]: c.fill = fill; c.font = hdr_font
     ws.append([])
     ws.append(["Metric", "Value"])
@@ -134,7 +136,7 @@ def make_pdf_salesperson(c: dict) -> bytes:
     sec_st   = ParagraphStyle('Sec', parent=styles['Normal'], fontSize=11, fontName='Helvetica-Bold', textColor=primary, spaceBefore=12, spaceAfter=6)
 
     story.append(Paragraph(f"{COMPANY}", title_st))
-    story.append(Paragraph(f"Commission Report · {period_label} · {c['salesperson_name']} · {c['branch_name']}", sub_st))
+    story.append(Paragraph(f"Commission Report � {period_label} � {c['salesperson_name']} � {c['branch_name']}", sub_st))
     story.append(HRFlowable(width="100%", thickness=2, color=primary))
     story.append(Spacer(1, 10))
 
@@ -159,7 +161,7 @@ def make_pdf_salesperson(c: dict) -> bytes:
     summary = [
         ["Base Commission", f"SAR {c['base_commission']:,.0f}"],
         ["KPI Score",       f"{c['kpi_score']:.2f}"],
-        ["KPI Multiplier",  f"× {c['kpi_multiplier']}"],
+        ["KPI Multiplier",  f"� {c['kpi_multiplier']}"],
         ["FINAL COMMISSION",f"SAR {c['final_commission']:,.0f}"],
     ]
     stbl = Table(summary, colWidths=[200, 200], hAlign='LEFT')
@@ -174,17 +176,17 @@ def make_pdf_salesperson(c: dict) -> bytes:
     return buf.getvalue()
 
 
-# ── Report buttons ────────────────────────────────────────────────────────────
-st.markdown("### Report 1 — Company-Wide Report")
+# -- Report buttons ------------------------------------------------------------
+st.markdown("### Report 1 � Company-Wide Report")
 col_a, col_b = st.columns(2)
 with col_a:
-    st.download_button("📥 Download Excel (Company)", make_excel_company(),
+    st.download_button("?? Download Excel (Company)", make_excel_company(),
                        f"Company_{period_label.replace(' ','_')}_Report.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                        type="primary", use_container_width=True)
 
 st.divider()
-st.markdown("### Report 2 — Single Salesperson Report")
+st.markdown("### Report 2 � Single Salesperson Report")
 sp_names   = [c['salesperson_name'] for c in commissions]
 selected_sp = st.selectbox("Select Salesperson", sp_names, key="rep_sp")
 selected_c  = next((c for c in commissions if c['salesperson_name'] == selected_sp), None)
@@ -193,7 +195,7 @@ if selected_c:
     col1, col2 = st.columns(2)
     with col1:
         st.download_button(
-            "📥 Download Excel",
+            "?? Download Excel",
             make_excel_salesperson(selected_c),
             f"{selected_sp.replace(' ','_')}_{period_label.replace(' ','_')}_Commission.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -201,7 +203,7 @@ if selected_c:
         )
     with col2:
         st.download_button(
-            "📄 Download PDF",
+            "?? Download PDF",
             make_pdf_salesperson(selected_c),
             f"{selected_sp.replace(' ','_')}_{period_label.replace(' ','_')}_Commission.pdf",
             mime="application/pdf",

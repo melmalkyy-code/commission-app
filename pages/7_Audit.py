@@ -1,11 +1,15 @@
 import sys, os; sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import streamlit as st
+from src.startup import init_db
+from src.auth import require_login, logout_button
+init_db()
+require_login()
 import pandas as pd
 from src.models import get_setting, get_audit_logs
 
 PRIMARY = get_setting('primary_color', '#354f61')
 st.set_page_config(page_title="Audit Log", layout="wide")
-st.markdown(f"<h1 style='color:{PRIMARY}'>📋 Audit Log</h1>", unsafe_allow_html=True)
+st.markdown(f"<h1 style='color:{PRIMARY}'>?? Audit Log</h1>", unsafe_allow_html=True)
 st.caption("Complete trail of all data changes and actions. Records are permanent.")
 
 col1, col2, col3 = st.columns(3)
@@ -43,7 +47,7 @@ if logs:
     for _, row in df.iterrows():
         ws.append(list(row))
     buf = io.BytesIO(); wb.save(buf)
-    st.download_button("📥 Export to Excel", buf.getvalue(), "Audit_Log.xlsx",
+    st.download_button("?? Export to Excel", buf.getvalue(), "Audit_Log.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 else:
     st.info("No audit records found.")

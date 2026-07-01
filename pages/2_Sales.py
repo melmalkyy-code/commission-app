@@ -1,5 +1,9 @@
-import sys, os; sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+﻿import sys, os; sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import streamlit as st
+from src.startup import init_db
+from src.auth import require_login, logout_button
+init_db()
+require_login()
 import pandas as pd
 from src.models import (get_setting, get_salespersons, get_categories,
                          get_or_create_period, save_sale, get_sales,
@@ -44,6 +48,13 @@ for sp in salespeople:
         row[cat['name']] = actual
         row[f"_{cat['id']}_target"] = target
     rows.append(row)
+
+if not salespeople:
+    st.info("ℹ️ No active salespersons found. Please add salespersons in ⚙️ Settings first.")
+    st.stop()
+if not categories:
+    st.info("ℹ️ No active categories found. Please configure categories in ⚙️ Settings first.")
+    st.stop()
 
 df = pd.DataFrame(rows)
 

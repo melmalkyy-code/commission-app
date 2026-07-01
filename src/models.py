@@ -1,9 +1,12 @@
+﻿from __future__ import annotations
 """All data models for the web app."""
 from typing import Optional
+import streamlit as st
 from src.db import execute, fetchall, fetchone
 
 
-# ── Settings ──────────────────────────────────────────────────────────────────
+# â”€â”€ Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+@st.cache_data(ttl=300)
 def get_setting(key: str, default: str = "") -> str:
     row = fetchone("SELECT value FROM settings WHERE key=%s", (key,))
     return row['value'] if row else default
@@ -13,11 +16,13 @@ def set_setting(key: str, value: str):
     execute("INSERT INTO settings (key, value) VALUES (%s, %s) ON CONFLICT (key) DO UPDATE SET value=%s, updated_at=CURRENT_TIMESTAMP", (key, value, value))
 
 
+@st.cache_data(ttl=300)
 def get_all_settings() -> dict:
     return {r['key']: r['value'] for r in fetchall("SELECT key, value FROM settings")}
 
 
-# ── Branches ──────────────────────────────────────────────────────────────────
+# â”€â”€ Branches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+@st.cache_data(ttl=300)
 def get_branches(active_only=False) -> list[dict]:
     sql = "SELECT id, name, city, is_active FROM branches"
     if active_only:
@@ -39,7 +44,8 @@ def delete_branch(bid: int):
     execute("DELETE FROM branches WHERE id=%s", (bid,))
 
 
-# ── Categories ────────────────────────────────────────────────────────────────
+# â”€â”€ Categories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+@st.cache_data(ttl=300)
 def get_categories(active_only=False) -> list[dict]:
     sql = "SELECT id, name, display_order, include_in_target, include_in_commission, include_in_kpi, is_active FROM categories"
     if active_only:
@@ -62,7 +68,8 @@ def delete_category(cid: int):
     execute("DELETE FROM categories WHERE id=%s", (cid,))
 
 
-# ── Target Tiers ──────────────────────────────────────────────────────────────
+# â”€â”€ Target Tiers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+@st.cache_data(ttl=300)
 def get_tiers(active_only=False) -> list[dict]:
     sql = "SELECT id, name, description, is_active FROM target_tiers"
     if active_only:
@@ -91,12 +98,14 @@ def delete_tier(tid: int):
     execute("DELETE FROM target_tiers WHERE id=%s", (tid,))
 
 
+@st.cache_data(ttl=300)
 def get_tier_target(tier_id: int, cat_id: int) -> float:
     row = fetchone("SELECT target_amount FROM tier_category_targets WHERE tier_id=%s AND category_id=%s", (tier_id, cat_id))
     return row['target_amount'] if row else 0.0
 
 
-# ── Salespersons ──────────────────────────────────────────────────────────────
+# â”€â”€ Salespersons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+@st.cache_data(ttl=300)
 def get_salespersons(active_only=False, branch_id=None) -> list[dict]:
     sql = """SELECT s.id, s.name, s.branch_id, b.name as branch_name,
                     s.tier_id, t.name as tier_name, s.email, s.is_active
@@ -126,7 +135,8 @@ def delete_salesperson(sid: int):
     execute("DELETE FROM salespersons WHERE id=%s", (sid,))
 
 
-# ── Commission Brackets ───────────────────────────────────────────────────────
+# â”€â”€ Commission Brackets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+@st.cache_data(ttl=300)
 def get_brackets(cat_id: int, active_only=True) -> list[dict]:
     sql = "SELECT id, category_id, from_amount, to_amount, commission_rate, is_unlimited, is_active, sort_order FROM commission_brackets WHERE category_id=%s"
     if active_only:
@@ -146,6 +156,7 @@ def delete_bracket(bid: int):
     execute("DELETE FROM commission_brackets WHERE id=%s", (bid,))
 
 
+@st.cache_data(ttl=300)
 def get_calc_method(cat_id: Optional[int] = None) -> str:
     if cat_id:
         row = fetchone("SELECT method FROM commission_calc_settings WHERE category_id=%s", (cat_id,))
@@ -154,19 +165,63 @@ def get_calc_method(cat_id: Optional[int] = None) -> str:
     return get_setting('global_calc_method', 'flat')
 
 
-# ── KPI ───────────────────────────────────────────────────────────────────────
+# â”€â”€ KPI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+@st.cache_data(ttl=300)
 def get_kpi_items(active_only=False) -> list[dict]:
-    sql = "SELECT id, name, weight, max_score, is_active, sort_order FROM kpi_items"
+    sql = """SELECT k.id, k.name, k.weight, k.max_score, k.is_active, k.sort_order,
+                    k.linked_category_id, c.name as linked_category_name
+             FROM kpi_items k
+             LEFT JOIN categories c ON k.linked_category_id = c.id"""
     if active_only:
-        sql += " WHERE is_active=1"
-    return fetchall(sql + " ORDER BY sort_order")
+        sql += " WHERE k.is_active=1"
+    return fetchall(sql + " ORDER BY k.sort_order")
 
 
+def add_kpi_item(name: str, weight: float, max_score: float, sort_order: int = 0) -> int:
+    cur = execute("INSERT INTO kpi_items (name, weight, max_score, sort_order) VALUES (%s,%s,%s,%s) RETURNING id",
+                  (name, weight, max_score, sort_order))
+    return cur.fetchone()[0]
+
+
+def delete_kpi_item(item_id: int):
+    execute("DELETE FROM kpi_items WHERE id=%s", (item_id,))
+
+
+def set_kpi_linked_category(item_id: int, cat_id):
+    execute("UPDATE kpi_items SET linked_category_id=%s WHERE id=%s", (cat_id, item_id))
+
+
+def get_category_achievement(period_id: int, sp_id: int, cat_id: int) -> float:
+    sp = fetchone("SELECT tier_id FROM salespersons WHERE id=%s", (sp_id,))
+    if not sp or not sp['tier_id']:
+        return 0.0
+    actual_row = fetchone(
+        "SELECT actual_sales FROM sales_records WHERE period_id=%s AND salesperson_id=%s AND category_id=%s",
+        (period_id, sp_id, cat_id))
+    actual = actual_row['actual_sales'] if actual_row else 0.0
+    target_row = fetchone(
+        "SELECT target_amount FROM tier_category_targets WHERE tier_id=%s AND category_id=%s",
+        (sp['tier_id'], cat_id))
+    target = target_row['target_amount'] if target_row else 0.0
+    return min((actual / target * 100) if target else 0.0, 100.0)
+
+
+@st.cache_data(ttl=300)
 def get_multiplier_rules(active_only=True) -> list[dict]:
     sql = "SELECT id, score_from, score_to, multiplier, is_unlimited, is_active FROM kpi_multiplier_rules"
     if active_only:
         sql += " WHERE is_active=1"
     return fetchall(sql + " ORDER BY score_from")
+
+
+def add_multiplier_rule(score_from: float, score_to: Optional[float], multiplier: float, unlimited: bool, sort_order: int = 0) -> int:
+    cur = execute("INSERT INTO kpi_multiplier_rules (score_from, score_to, multiplier, is_unlimited, sort_order) VALUES (%s,%s,%s,%s,%s) RETURNING id",
+                  (score_from, score_to, multiplier, int(unlimited), sort_order))
+    return cur.fetchone()[0]
+
+
+def delete_multiplier_rule(rule_id: int):
+    execute("DELETE FROM kpi_multiplier_rules WHERE id=%s", (rule_id,))
 
 
 def get_kpi_score(period_id: int, sp_id: int, item_id: int) -> float:
@@ -187,7 +242,7 @@ def save_kpi_adjustment(period_id: int, sp_id: int, bonus: float, penalty: float
     execute("INSERT INTO kpi_adjustments (period_id, salesperson_id, bonus_points, penalty_points, notes) VALUES (%s,%s,%s,%s,%s) ON CONFLICT (period_id, salesperson_id) DO UPDATE SET bonus_points=%s, penalty_points=%s, notes=%s", (period_id, sp_id, bonus, penalty, notes, bonus, penalty, notes))
 
 
-# ── Periods ───────────────────────────────────────────────────────────────────
+# â”€â”€ Periods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def get_periods() -> list[dict]:
     return fetchall("SELECT id, year, quarter, is_locked, is_current, locked_at FROM periods ORDER BY year DESC, quarter DESC")
 
@@ -209,7 +264,7 @@ def unlock_period(pid: int):
     execute("UPDATE periods SET is_locked=0, locked_at=NULL WHERE id=%s", (pid,))
 
 
-# ── Sales Records ─────────────────────────────────────────────────────────────
+# â”€â”€ Sales Records â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def get_sales(period_id: int, sp_id: int = None) -> list[dict]:
     sql = """SELECT sr.salesperson_id, sr.category_id, sr.actual_sales,
                     s.name as sp_name, b.name as branch_name,
@@ -232,7 +287,7 @@ def save_sale(period_id: int, sp_id: int, cat_id: int, amount: float):
     execute("INSERT INTO sales_records (period_id, salesperson_id, category_id, actual_sales) VALUES (%s,%s,%s,%s) ON CONFLICT (period_id, salesperson_id, category_id) DO UPDATE SET actual_sales=%s, updated_at=CURRENT_TIMESTAMP", (period_id, sp_id, cat_id, amount, amount))
 
 
-# ── Audit Log ─────────────────────────────────────────────────────────────────
+# â”€â”€ Audit Log â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def log_action(action_type: str, entity_type: str = "", entity_id: int = None, entity_name: str = "", old_val: str = "", new_val: str = "", notes: str = "", username: str = "user"):
     execute("INSERT INTO audit_logs (action_type, entity_type, entity_id, entity_name, old_value, new_value, notes, username) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)", (action_type, entity_type, entity_id, entity_name, old_val, new_val, notes, username))
 
@@ -245,3 +300,4 @@ def get_audit_logs(action_type=None, entity_type=None, limit=500) -> list[dict]:
     if entity_type:
         sql += " AND entity_type=%s"; params.append(entity_type)
     return fetchall(sql + f" ORDER BY timestamp DESC LIMIT {limit}", tuple(params))
+

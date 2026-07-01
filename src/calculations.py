@@ -1,8 +1,9 @@
+from __future__ import annotations
 """Commission and KPI calculation engine for the web app."""
 from src.models import (
     get_salespersons, get_categories, get_brackets, get_calc_method,
     get_tier_target, get_sales, get_kpi_items, get_multiplier_rules,
-    get_kpi_score, get_kpi_adjustment
+    get_kpi_score, get_kpi_adjustment, get_category_achievement
 )
 
 
@@ -10,17 +11,22 @@ def _safe_div(a, b, default=0.0):
     return (a / b) if b else default
 
 
-# ── KPI ──────────────────────────────────────────────────────────────────────
+# -- KPI ----------------------------------------------------------------------
 def calc_kpi(period_id: int, sp_id: int) -> dict:
     items = get_kpi_items(active_only=True)
     weighted = 0.0
     details = []
     for item in items:
-        raw = get_kpi_score(period_id, sp_id, item['id'])
+        if item.get('linked_category_id'):
+            raw = get_category_achievement(period_id, sp_id, item['linked_category_id'])
+            is_auto = True
+        else:
+            raw = get_kpi_score(period_id, sp_id, item['id'])
+            is_auto = False
         norm = _safe_div(raw, item['max_score']) * 100
         contrib = _safe_div(norm * item['weight'], 100)
         weighted += contrib
-        details.append({**item, 'raw_score': raw, 'normalized': norm, 'contribution': contrib})
+        details.append({**item, 'raw_score': raw, 'normalized': norm, 'contribution': contrib, 'is_auto': is_auto})
 
     adj = get_kpi_adjustment(period_id, sp_id)
     bonus = adj.get('bonus_points', 0) or 0
@@ -42,13 +48,15 @@ def calc_kpi(period_id: int, sp_id: int) -> dict:
 def _get_multiplier(score: float) -> float:
     for rule in get_multiplier_rules(active_only=True):
         upper = rule['score_to'] if not rule['is_unlimited'] else float('inf')
-        if rule['score_from'] <= score <= (upper if upper is not None else float('inf')):
+        if upper is None:
+            upper = float('inf')
+        if rule['score_from'] <= score <= upper:
             return rule['multiplier']
     return 1.0
 
 
-# ── Commission brackets ───────────────────────────────────────────────────────
-def calc_flat(sales: float, brackets: list[dict]) -> tuple[float, str, float]:
+# -- Commission brackets ------------------------------------------------------
+def calc_flat(sales: float, brackets: list) -> tuple:
     if not brackets or sales <= 0:
         return 0.0, "No bracket", 0.0
     for b in sorted(brackets, key=lambda x: x['from_amount']):
@@ -57,14 +65,15 @@ def calc_flat(sales: float, brackets: list[dict]) -> tuple[float, str, float]:
             upper = float('inf')
         if b['from_amount'] <= sales <= upper or (b['is_unlimited'] and sales >= b['from_amount']):
             rate = b['commission_rate']
-            label = f"SAR {b['from_amount']:,.0f}–{'∞' if b['is_unlimited'] else f\"SAR {b['to_amount']:,.0f}\"} @ {rate:.2f}%"
+            to_str = "Unlimited" if b['is_unlimited'] else "SAR {:,.0f}".format(b['to_amount'])
+            label = "SAR {:,.0f} - {} @ {:.2f}%".format(b['from_amount'], to_str, rate)
             return round(sales * rate / 100, 2), label, rate
     last = brackets[-1]
     rate = last['commission_rate']
-    return round(sales * rate / 100, 2), f"SAR {last['from_amount']:,.0f}+ @ {rate:.2f}%", rate
+    return round(sales * rate / 100, 2), "SAR {:,.0f}+ @ {:.2f}%".format(last['from_amount'], rate), rate
 
 
-def calc_progressive(sales: float, brackets: list[dict]) -> tuple[float, str, float]:
+def calc_progressive(sales: float, brackets: list) -> tuple:
     if not brackets or sales <= 0:
         return 0.0, "Progressive", 0.0
     total = 0.0
@@ -76,16 +85,15 @@ def calc_progressive(sales: float, brackets: list[dict]) -> tuple[float, str, fl
         if sales <= upper:
             break
     eff = _safe_div(total * 100, sales)
-    return round(total, 2), f"Progressive ({eff:.2f}% eff.)", eff
+    return round(total, 2), "Progressive ({:.2f}% eff.)".format(eff), eff
 
 
-# ── Full commission calculation ───────────────────────────────────────────────
-def calc_all_commissions(period_id: int) -> list[dict]:
+# -- Full commission calculation -----------------------------------------------
+def calc_all_commissions(period_id: int) -> list:
     salespersons = get_salespersons(active_only=True)
     categories   = [c for c in get_categories(active_only=True) if c['include_in_commission']]
     all_sales    = get_sales(period_id)
 
-    # Index sales: {(sp_id, cat_id): amount}
     sales_map = {(r['salesperson_id'], r['category_id']): r['actual_sales'] for r in all_sales}
 
     results = []
@@ -94,10 +102,10 @@ def calc_all_commissions(period_id: int) -> list[dict]:
         cat_results = []
         base = 0.0
         for cat in categories:
-            actual  = sales_map.get((sp['id'], cat['id']), 0.0)
-            target  = get_tier_target(sp['tier_id'], cat['id']) if sp['tier_id'] else 0.0
-            ach     = _safe_div(actual * 100, target)
-            method  = get_calc_method(cat['id'])
+            actual   = sales_map.get((sp['id'], cat['id']), 0.0)
+            target   = get_tier_target(sp['tier_id'], cat['id']) if sp['tier_id'] else 0.0
+            ach      = _safe_div(actual * 100, target)
+            method   = get_calc_method(cat['id'])
             brackets = get_brackets(cat['id'], active_only=True)
             if method == 'progressive':
                 comm, label, rate = calc_progressive(actual, brackets)
@@ -138,7 +146,7 @@ def calc_all_commissions(period_id: int) -> list[dict]:
     return results
 
 
-def get_totals(commissions: list[dict]) -> dict:
+def get_totals(commissions: list) -> dict:
     total_sales  = sum(c['total_actual'] for c in commissions)
     total_target = sum(c['total_target'] for c in commissions)
     total_base   = sum(c['base_commission'] for c in commissions)
