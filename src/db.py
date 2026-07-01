@@ -119,39 +119,79 @@ def _adapt_sql(sql: str) -> str:
     return sql if getattr(_local, 'is_pg', False) else sql.replace('%s', '?')
 
 
+def _fallback_to_sqlite():
+    """Mark PG as unusable and open a fresh SQLite connection."""
+    global _IS_POSTGRES
+    _IS_POSTGRES = False
+    _local.is_pg = False
+    _local.conn = _open_sqlite()
+
+
 def execute(sql: str, params: tuple = ()) -> Any:
+    global _IS_POSTGRES
     conn = get_conn()
-    sql = _adapt_sql(sql)
+    adapted = _adapt_sql(sql)
+    is_pg = getattr(_local, 'is_pg', False)
     cur = conn.cursor()
-    if getattr(_local, 'is_pg', False):
-        cur.execute(sql, params)
-    else:
-        try:
-            cur.execute(sql, params)
+    try:
+        cur.execute(adapted, params)
+        if not is_pg:
             conn.commit()
-        except Exception:
+        return cur
+    except Exception:
+        if not is_pg:
             try:
                 conn.rollback()
             except Exception:
                 pass
             raise
-    return cur
+        # pg8000 / psycopg2 failed during execute — fall back to SQLite
+        _fallback_to_sqlite()
+        adapted2 = sql.replace('%s', '?')
+        cur2 = _local.conn.cursor()
+        try:
+            cur2.execute(adapted2, params)
+            _local.conn.commit()
+        except Exception:
+            try:
+                _local.conn.rollback()
+            except Exception:
+                pass
+            raise
+        return cur2
 
 
 def fetchall(sql: str, params: tuple = ()) -> list:
+    global _IS_POSTGRES
     conn = get_conn()
-    sql = _adapt_sql(sql)
-    cur = conn.cursor()
-    cur.execute(sql, params)
-    rows = cur.fetchall()
-    if getattr(_local, 'is_pg', False):
-        cols = [d[0] for d in cur.description]
-        return [dict(zip(cols, row)) for row in rows]
+    adapted = _adapt_sql(sql)
+    is_pg = getattr(_local, 'is_pg', False)
     try:
-        return [dict(row) for row in rows]
+        cur = conn.cursor()
+        cur.execute(adapted, params)
+        rows = cur.fetchall()
+        if is_pg:
+            cols = [d[0] for d in cur.description]
+            return [dict(zip(cols, row)) for row in rows]
+        try:
+            return [dict(row) for row in rows]
+        except Exception:
+            cols = [d[0] for d in cur.description]
+            return [dict(zip(cols, row)) for row in rows]
     except Exception:
-        cols = [d[0] for d in cur.description]
-        return [dict(zip(cols, row)) for row in rows]
+        if not is_pg:
+            raise
+        # pg8000 / psycopg2 failed during execute — fall back to SQLite
+        _fallback_to_sqlite()
+        adapted2 = sql.replace('%s', '?')
+        cur2 = _local.conn.cursor()
+        cur2.execute(adapted2, params)
+        rows2 = cur2.fetchall()
+        try:
+            return [dict(row) for row in rows2]
+        except Exception:
+            cols = [d[0] for d in cur2.description]
+            return [dict(zip(cols, row)) for row in rows2]
 
 
 def fetchone(sql: str, params: tuple = ()) -> dict | None:

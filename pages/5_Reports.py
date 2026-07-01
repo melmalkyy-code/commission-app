@@ -1,6 +1,8 @@
 import sys, os, io; sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import streamlit as st
+from src.startup import init_db
 from src.auth import require_login, logout_button
+init_db()
 require_login()
 import pandas as pd
 from src.models import get_setting, get_or_create_period, get_branches, get_salespersons
@@ -33,7 +35,7 @@ def make_excel_company() -> bytes:
     ws = wb.active; ws.title = "Company Summary"
     fill = PatternFill(start_color="354f61", end_color="354f61", fill_type="solid")
     hdr_font = Font(color="FFFFFF", bold=True)
-    ws.append([COMPANY, "", f"Company Commission Report — {period_label}"])
+    ws.append([COMPANY, "", f"Company Commission Report ï¿½ {period_label}"])
     for c in ws[1]: c.fill = fill; c.font = hdr_font
     ws.append([])
     ws.append(["Metric", "Value"])
@@ -136,7 +138,7 @@ def make_pdf_salesperson(c: dict) -> bytes:
     sec_st   = ParagraphStyle('Sec', parent=styles['Normal'], fontSize=11, fontName='Helvetica-Bold', textColor=primary, spaceBefore=12, spaceAfter=6)
 
     story.append(Paragraph(f"{COMPANY}", title_st))
-    story.append(Paragraph(f"Commission Report · {period_label} · {c['salesperson_name']} · {c['branch_name']}", sub_st))
+    story.append(Paragraph(f"Commission Report ï¿½ {period_label} ï¿½ {c['salesperson_name']} ï¿½ {c['branch_name']}", sub_st))
     story.append(HRFlowable(width="100%", thickness=2, color=primary))
     story.append(Spacer(1, 10))
 
@@ -161,7 +163,7 @@ def make_pdf_salesperson(c: dict) -> bytes:
     summary = [
         ["Base Commission", f"SAR {c['base_commission']:,.0f}"],
         ["KPI Score",       f"{c['kpi_score']:.2f}"],
-        ["KPI Multiplier",  f"× {c['kpi_multiplier']}"],
+        ["KPI Multiplier",  f"ï¿½ {c['kpi_multiplier']}"],
         ["FINAL COMMISSION",f"SAR {c['final_commission']:,.0f}"],
     ]
     stbl = Table(summary, colWidths=[200, 200], hAlign='LEFT')
@@ -177,7 +179,7 @@ def make_pdf_salesperson(c: dict) -> bytes:
 
 
 # -- Report buttons ------------------------------------------------------------
-st.markdown("### Report 1 — Company-Wide Report")
+st.markdown("### Report 1 ï¿½ Company-Wide Report")
 col_a, col_b = st.columns(2)
 with col_a:
     st.download_button("?? Download Excel (Company)", make_excel_company(),
@@ -186,7 +188,7 @@ with col_a:
                        type="primary", use_container_width=True)
 
 st.divider()
-st.markdown("### Report 2 — Single Salesperson Report")
+st.markdown("### Report 2 ï¿½ Single Salesperson Report")
 sp_names   = [c['salesperson_name'] for c in commissions]
 selected_sp = st.selectbox("Select Salesperson", sp_names, key="rep_sp")
 selected_c  = next((c for c in commissions if c['salesperson_name'] == selected_sp), None)

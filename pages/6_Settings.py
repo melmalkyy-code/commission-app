@@ -76,9 +76,9 @@ with tabs[1]:
                     log_action("ADD_BRANCH", "branch", entity_name=n)
                     st.rerun()
 
-    for br in branches:
+    for _bi, br in enumerate(branches):
         with st.expander(f"{'??' if br['is_active'] else '??'} {br['name']} � {br.get('city','')}"):
-            with st.form(f"edit_br_{br['id']}"):
+            with st.form(f"br_edit_{_bi}_{br['id']}"):
                 new_name = st.text_input("Name", br['name'])
                 new_city = st.text_input("City", br.get('city',''))
                 is_active = st.checkbox("Active", bool(br['is_active']))
@@ -111,9 +111,9 @@ with tabs[2]:
                               error_hint=f"A salesperson named '{n}' already exists.") is not None:
                     st.rerun()
 
-    for sp in sps:
+    for _si, sp in enumerate(sps):
         with st.expander(f"{'??' if sp['is_active'] else '??'} {sp['name']} � {sp.get('branch_name','')}"):
-            with st.form(f"edit_sp_{sp['id']}"):
+            with st.form(f"sp_edit_{_si}_{sp['id']}"):
                 new_n   = st.text_input("Name", sp['name'])
                 new_br  = st.selectbox("Branch", list(br_opts.keys()), index=list(br_opts.keys()).index(sp.get('branch_name','')) if sp.get('branch_name') in br_opts else 0)
                 new_t   = st.selectbox("Target Tier", list(tier_opts.keys()), index=list(tier_opts.keys()).index(sp.get('tier_name','')) if sp.get('tier_name') in tier_opts else 0)
@@ -154,10 +154,10 @@ with tabs[3]:
                     msg = str(e).lower()
                     st.error(f"? Tier '{tn}' already exists." if "unique" in msg or "duplicate" in msg else f"? {e}")
 
-    for tier in tiers:
+    for _ti, tier in enumerate(tiers):
         total = sum(tier['targets'].values())
         with st.expander(f"{'??' if tier['is_active'] else '??'} {tier['name']} � Total: SAR {total:,.0f}"):
-            with st.form(f"edit_tier_{tier['id']}"):
+            with st.form(f"tier_edit_{_ti}_{tier['id']}"):
                 tn = st.text_input("Name", tier['name'])
                 td = st.text_input("Desc", tier.get('description',''))
                 is_act = st.checkbox("Active", bool(tier['is_active']))
@@ -450,11 +450,11 @@ with tabs[8]:
         if users:
             st.markdown("#### Current Users")
             current_user = st.session_state.get('username', '')
-            for u in users:
+            for _ui, u in enumerate(users):
                 badge = "??" if u['role'] == 'admin' else "??"
                 you   = " (you)" if u['username'] == current_user else ""
                 with st.expander(f"{badge} {u['username']}{you} � {u['full_name'] or '�'} � {u['role']}"):
-                    with st.form(f"edit_user_{u['id']}"):
+                    with st.form(f"usr_edit_{_ui}_{u['id']}"):
                         np1 = st.text_input("New Password", type="password", placeholder="Leave blank to keep current")
                         np2 = st.text_input("Confirm New Password", type="password")
                         nr  = st.selectbox("Role", ["viewer", "admin"],
