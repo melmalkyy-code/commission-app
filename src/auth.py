@@ -173,11 +173,11 @@ def _show_login():
     lang_col1, lang_col2, _ = st.columns([1, 1, 4])
     _lang = get_lang()
     with lang_col1:
-        if st.button("🌐 EN", type="primary" if _lang == 'en' else "secondary", key="_login_lang_en"):
+        if st.button("EN", type="primary" if _lang == 'en' else "secondary", key="_login_lang_en"):
             st.session_state[_LANG_KEY] = 'en'
             st.rerun()
     with lang_col2:
-        if st.button("🌐 عربي", type="primary" if _lang == 'ar' else "secondary", key="_login_lang_ar"):
+        if st.button("عربي", type="primary" if _lang == 'ar' else "secondary", key="_login_lang_ar"):
             st.session_state[_LANG_KEY] = 'ar'
             st.rerun()
 
@@ -266,5 +266,5 @@ def is_admin() -> bool:
 def require_admin() -> None:
     """Stop execution with an access-denied message if the user is not an admin."""
     if not is_admin():
-        st.error(t("⛔ Access denied. Settings are only available to administrators."))
+        st.error(t("Access denied. Settings are only available to administrators."))
         st.stop()

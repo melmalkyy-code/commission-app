@@ -1,4 +1,4 @@
-import sys, os, io, base64; sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+﻿import sys, os, io, base64; sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import streamlit as st
 import pandas as pd
 from src.startup import init_db
@@ -10,6 +10,7 @@ from src.calculations import calc_all_commissions, get_totals
 
 from src.ui import inject_css, page_header, sidebar_logo
 from src.i18n import t, tl, q_label, is_rtl
+from src.pdf_arabic import cell as _ar_cell, pdf_font, pdf_font_bold, ar as _ar
 
 PRIMARY = get_setting('primary_color', '#354f61')
 ACCENT  = get_setting('accent_color', '#f6ba3b')
@@ -316,50 +317,54 @@ def make_excel_salesperson(c: dict, lang: str = 'en') -> bytes:
 
 
 # ─── Company PDF ─────────────────────────────────────────────────────────────
-def make_pdf_company() -> bytes:
+def make_pdf_company(lang: str = 'en') -> bytes:
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
                                     Table, TableStyle, HRFlowable)
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.colors import HexColor
     from reportlab.lib.pagesizes import A4
+    def _t(s): return tl(s, lang)
+    _c = lambda s: _ar_cell(s, lang)
+    _fn  = pdf_font(lang)
+    _fnb = pdf_font_bold(lang)
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4,
                             leftMargin=40, rightMargin=40,
                             topMargin=50, bottomMargin=50)
     styles = getSampleStyleSheet()
     pc = HexColor(PRIMARY)
-    ac = HexColor(ACCENT)
     story = []
 
-    title_st = ParagraphStyle('T', parent=styles['Title'], fontSize=16, textColor=pc)
+    title_st = ParagraphStyle('T', parent=styles['Title'], fontSize=16,
+                               textColor=pc, fontName=_fn)
     sub_st   = ParagraphStyle('S', parent=styles['Normal'], fontSize=10,
-                               textColor=HexColor('#5a7080'))
+                               textColor=HexColor('#5a7080'), fontName=_fn)
     sec_st   = ParagraphStyle('Sec', parent=styles['Normal'], fontSize=11,
-                               fontName='Helvetica-Bold', textColor=pc,
+                               fontName=_fnb, textColor=pc,
                                spaceBefore=12, spaceAfter=6)
 
-    story.append(Paragraph(COMPANY, title_st))
-    story.append(Paragraph(f"Commission Report | {period_label}", sub_st))
+    story.append(Paragraph(_c(COMPANY), title_st))
+    story.append(Paragraph(_c(f"{_t('Commission Summary')} | {period_label}"), sub_st))
     story.append(HRFlowable(width="100%", thickness=2, color=pc))
     story.append(Spacer(1, 10))
 
-    # Summary table
-    story.append(Paragraph("Company Summary", sec_st))
+    story.append(Paragraph(_c(_t("Company Summary")), sec_st))
     summary_data = [
-        ["Metric", "Value"],
-        ["Total Sales (SAR)",      f"SAR {totals['total_sales']:,.0f}"],
-        ["Total Target (SAR)",     f"SAR {totals['total_target']:,.0f}"],
-        ["Achievement %",          f"{totals['achievement']:.1f}%"],
-        ["Base Commission (SAR)",  f"SAR {totals['total_base']:,.0f}"],
-        ["Final Commission (SAR)", f"SAR {totals['total_final']:,.0f}"],
-        ["Total Salespersons",     str(totals['total_count'])],
-        ["Achieved Target",        str(totals['achieved_count'])],
+        [_c(_t("Metric")), _c(_t("Value"))],
+        [_c(_t("Total Sales (SAR)")),      f"SAR {totals['total_sales']:,.0f}"],
+        [_c(_t("Total Target (SAR)")),     f"SAR {totals['total_target']:,.0f}"],
+        [_c(_t("Achievement %")),          f"{totals['achievement']:.1f}%"],
+        [_c(_t("Base Commission (SAR)")),  f"SAR {totals['total_base']:,.0f}"],
+        [_c(_t("Final Commission (SAR)")), f"SAR {totals['total_final']:,.0f}"],
+        [_c(_t("Total Salespersons")),     str(totals['total_count'])],
+        [_c(_t("Achieved Target")),        str(totals['achieved_count'])],
     ]
     stbl = Table(summary_data, colWidths=[250, 180], hAlign='LEFT')
     stbl.setStyle(TableStyle([
         ('BACKGROUND',     (0, 0), (-1, 0),  pc),
         ('TEXTCOLOR',      (0, 0), (-1, 0),  HexColor('#ffffff')),
-        ('FONTNAME',       (0, 0), (-1, 0),  'Helvetica-Bold'),
+        ('FONTNAME',       (0, 0), (-1, -1), _fn),
+        ('FONTNAME',       (0, 0), (-1, 0),  _fnb),
         ('FONTSIZE',       (0, 0), (-1, -1), 9),
         ('GRID',           (0, 0), (-1, -1), 0.3, HexColor('#dde5ea')),
         ('PADDING',        (0, 0), (-1, -1), 6),
@@ -369,13 +374,14 @@ def make_pdf_company() -> bytes:
     story.append(stbl)
     story.append(Spacer(1, 14))
 
-    # All salespersons table
-    story.append(Paragraph("All Salespersons", sec_st))
-    sp_data = [["Salesperson", "Branch", "Tier", "Sales (SAR)",
-                "Ach %", "KPI Mult.", "Final Comm. (SAR)"]]
+    story.append(Paragraph(_c(_t("All Salespersons")), sec_st))
+    sp_data = [[_c(_t("Salesperson")), _c(_t("Branch")), _c(_t("Tier")),
+                _c(_t("Total Sales (SAR)")), _c(_t("Achievement %")),
+                _c(_t("KPI x")), _c(_t("Final Commission (SAR)"))]]
     for c in commissions:
         sp_data.append([
-            c['salesperson_name'], c['branch_name'] or '', c['tier_name'] or '',
+            _c(c['salesperson_name']), _c(c['branch_name'] or ''),
+            _c(c['tier_name'] or ''),
             f"{c['total_actual']:,.0f}", f"{c['achievement']:.1f}%",
             f"x{c['kpi_multiplier']}", f"{c['final_commission']:,.0f}",
         ])
@@ -383,7 +389,8 @@ def make_pdf_company() -> bytes:
     sp_tbl.setStyle(TableStyle([
         ('BACKGROUND',     (0, 0), (-1, 0),  pc),
         ('TEXTCOLOR',      (0, 0), (-1, 0),  HexColor('#ffffff')),
-        ('FONTNAME',       (0, 0), (-1, 0),  'Helvetica-Bold'),
+        ('FONTNAME',       (0, 0), (-1, -1), _fn),
+        ('FONTNAME',       (0, 0), (-1, 0),  _fnb),
         ('FONTSIZE',       (0, 0), (-1, -1), 7),
         ('GRID',           (0, 0), (-1, -1), 0.3, HexColor('#dde5ea')),
         ('PADDING',        (0, 0), (-1, -1), 4),
@@ -397,12 +404,16 @@ def make_pdf_company() -> bytes:
 
 
 # ─── Branch PDF ───────────────────────────────────────────────────────────────
-def make_pdf_branch(branch_name: str, persons: list) -> bytes:
+def make_pdf_branch(branch_name: str, persons: list, lang: str = 'en') -> bytes:
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
                                     Table, TableStyle, HRFlowable)
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.colors import HexColor
     from reportlab.lib.pagesizes import A4
+    def _t(s): return tl(s, lang)
+    _c = lambda s: _ar_cell(s, lang)
+    _fn  = pdf_font(lang)
+    _fnb = pdf_font_bold(lang)
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4,
                             leftMargin=40, rightMargin=40,
@@ -412,26 +423,30 @@ def make_pdf_branch(branch_name: str, persons: list) -> bytes:
     ac = HexColor(ACCENT)
     story = []
 
-    title_st = ParagraphStyle('T', parent=styles['Title'], fontSize=16, textColor=pc)
+    title_st = ParagraphStyle('T', parent=styles['Title'], fontSize=16,
+                               textColor=pc, fontName=_fn)
     sub_st   = ParagraphStyle('S', parent=styles['Normal'], fontSize=10,
-                               textColor=HexColor('#5a7080'))
+                               textColor=HexColor('#5a7080'), fontName=_fn)
     sec_st   = ParagraphStyle('Sec', parent=styles['Normal'], fontSize=11,
-                               fontName='Helvetica-Bold', textColor=pc,
+                               fontName=_fnb, textColor=pc,
                                spaceBefore=12, spaceAfter=6)
 
-    story.append(Paragraph(COMPANY, title_st))
-    story.append(Paragraph(f"Branch Report | {branch_name} | {period_label}", sub_st))
+    story.append(Paragraph(_c(COMPANY), title_st))
+    story.append(Paragraph(
+        _c(f"{_t('Branch Report')} | {branch_name} | {period_label}"), sub_st))
     story.append(HRFlowable(width="100%", thickness=2, color=pc))
     story.append(Spacer(1, 10))
 
-    story.append(Paragraph("Salesperson Breakdown", sec_st))
-    tbl_data = [["Salesperson", "Tier", "Sales (SAR)", "Target (SAR)",
-                 "Ach %", "KPI x", "Final Comm. (SAR)"]]
+    story.append(Paragraph(_c(_t("All Salespersons")), sec_st))
+    tbl_data = [[_c(_t("Salesperson")), _c(_t("Tier")),
+                 _c(_t("Total Sales (SAR)")), _c(_t("Total Target (SAR)")),
+                 _c(_t("Achievement %")), _c(_t("KPI x")),
+                 _c(_t("Final Commission (SAR)"))]]
     b_sales = b_target = b_final = 0.0
     for c in persons:
         ach = (c['total_actual'] / c['total_target'] * 100) if c['total_target'] else 0
         tbl_data.append([
-            c['salesperson_name'], c['tier_name'] or '',
+            _c(c['salesperson_name']), _c(c['tier_name'] or ''),
             f"{c['total_actual']:,.0f}", f"{c['total_target']:,.0f}",
             f"{ach:.1f}%", f"x{c['kpi_multiplier']}",
             f"{c['final_commission']:,.0f}",
@@ -440,7 +455,7 @@ def make_pdf_branch(branch_name: str, persons: list) -> bytes:
         b_target += c['total_target']
         b_final  += c['final_commission']
     tbl_data.append([
-        "TOTAL", "",
+        _c(_t("TOTAL")), "",
         f"{b_sales:,.0f}", f"{b_target:,.0f}",
         f"{(b_sales/b_target*100) if b_target else 0:.1f}%", "",
         f"{b_final:,.0f}",
@@ -450,9 +465,10 @@ def make_pdf_branch(branch_name: str, persons: list) -> bytes:
     tbl.setStyle(TableStyle([
         ('BACKGROUND',     (0, 0),  (-1, 0),  pc),
         ('TEXTCOLOR',      (0, 0),  (-1, 0),  HexColor('#ffffff')),
-        ('FONTNAME',       (0, 0),  (-1, 0),  'Helvetica-Bold'),
+        ('FONTNAME',       (0, 0),  (-1, -1), _fn),
+        ('FONTNAME',       (0, 0),  (-1, 0),  _fnb),
         ('BACKGROUND',     (0, -1), (-1, -1), ac),
-        ('FONTNAME',       (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('FONTNAME',       (0, -1), (-1, -1), _fnb),
         ('FONTSIZE',       (0, 0),  (-1, -1), 8),
         ('GRID',           (0, 0),  (-1, -1), 0.3, HexColor('#dde5ea')),
         ('PADDING',        (0, 0),  (-1, -1), 5),
@@ -466,13 +482,17 @@ def make_pdf_branch(branch_name: str, persons: list) -> bytes:
 
 
 # ─── Salesperson PDF ──────────────────────────────────────────────────────────
-def make_pdf_salesperson(c: dict) -> bytes:
+def make_pdf_salesperson(c: dict, lang: str = 'en') -> bytes:
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
                                     Table, TableStyle, HRFlowable,
                                     Image as _RLImage)
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.colors import HexColor
     from reportlab.lib.pagesizes import A4
+    def _t(s): return tl(s, lang)
+    _c = lambda s: _ar_cell(s, lang)
+    _fn  = pdf_font(lang)
+    _fnb = pdf_font_bold(lang)
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4,
                             leftMargin=40, rightMargin=40,
@@ -483,11 +503,11 @@ def make_pdf_salesperson(c: dict) -> bytes:
     story = []
 
     title_st = ParagraphStyle('T', parent=styles['Title'],
-                               fontSize=16, textColor=pc)
+                               fontSize=16, textColor=pc, fontName=_fn)
     sub_st   = ParagraphStyle('S', parent=styles['Normal'],
-                               fontSize=10, textColor=HexColor('#5a7080'))
+                               fontSize=10, textColor=HexColor('#5a7080'), fontName=_fn)
     sec_st   = ParagraphStyle('Sec', parent=styles['Normal'],
-                               fontSize=11, fontName='Helvetica-Bold',
+                               fontSize=11, fontName=_fnb,
                                textColor=pc, spaceBefore=12, spaceAfter=6)
 
     # Header — logo left, title right
@@ -502,10 +522,10 @@ def make_pdf_salesperson(c: dict) -> bytes:
         except Exception:
             header_logo = None
     title_block = [
-        Paragraph(COMPANY, title_st),
+        Paragraph(_c(COMPANY), title_st),
         Paragraph(
-            f"Commission Report | {period_label} | "
-            f"{c['salesperson_name']} | {c['branch_name']}",
+            _c(f"{_t('Commission Summary')} | {period_label} | "
+               f"{c['salesperson_name']} | {c['branch_name']}"),
             sub_st,
         ),
     ]
@@ -521,12 +541,13 @@ def make_pdf_salesperson(c: dict) -> bytes:
     story.append(HRFlowable(width="100%", thickness=2, color=pc))
     story.append(Spacer(1, 10))
 
-    story.append(Paragraph("Category Breakdown", sec_st))
-    tbl_data = [["Category", "Actual Sales", "Target", "Ach %", "Rate", "Commission"]]
+    story.append(Paragraph(_c(_t("Category Breakdown")), sec_st))
+    tbl_data = [[_c(_t("Category")), _c(_t("Actual Sales")), _c(_t("Target")),
+                 _c(_t("Achievement %")), _c(_t("Rate %")), _c(_t("Commission"))]]
     for cr in c['categories']:
         ach = (cr['actual_sales'] / cr['target'] * 100) if cr['target'] else 0
         tbl_data.append([
-            cr['category_name'],
+            _c(cr['category_name']),
             f"SAR {cr['actual_sales']:,.0f}",
             f"SAR {cr['target']:,.0f}",
             f"{ach:.1f}%",
@@ -537,7 +558,8 @@ def make_pdf_salesperson(c: dict) -> bytes:
     tbl.setStyle(TableStyle([
         ('BACKGROUND',   (0, 0), (-1, 0),  pc),
         ('TEXTCOLOR',    (0, 0), (-1, 0),  HexColor('#ffffff')),
-        ('FONTNAME',     (0, 0), (-1, 0),  'Helvetica-Bold'),
+        ('FONTNAME',     (0, 0), (-1, -1), _fn),
+        ('FONTNAME',     (0, 0), (-1, 0),  _fnb),
         ('FONTSIZE',     (0, 0), (-1, -1), 8),
         ('GRID',         (0, 0), (-1, -1), 0.3, HexColor('#dde5ea')),
         ('PADDING',      (0, 0), (-1, -1), 5),
@@ -547,18 +569,18 @@ def make_pdf_salesperson(c: dict) -> bytes:
     story.append(tbl)
     story.append(Spacer(1, 12))
 
-    story.append(Paragraph("Commission Summary", sec_st))
+    story.append(Paragraph(_c(_t("Commission Summary")), sec_st))
     summary = [
-        ["Base Commission", f"SAR {c['base_commission']:,.0f}"],
-        ["KPI Score",       f"{c['kpi_score']:.2f}"],
-        ["KPI Multiplier",  f"x {c['kpi_multiplier']}"],
-        ["FINAL COMMISSION", f"SAR {c['final_commission']:,.0f}"],
+        [_c(_t("Base Commission")), f"SAR {c['base_commission']:,.0f}"],
+        [_c(_t("KPI Score")),       f"{c['kpi_score']:.2f}"],
+        [_c(_t("KPI Multiplier")),  f"x {c['kpi_multiplier']}"],
+        [_c(_t("FINAL COMMISSION")), f"SAR {c['final_commission']:,.0f}"],
     ]
     stbl = Table(summary, colWidths=[200, 200], hAlign='LEFT')
     stbl.setStyle(TableStyle([
-        ('FONTNAME',    (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTNAME',    (0, 0), (-1, -1), _fn),
         ('FONTSIZE',    (0, 0), (-1, -1), 9),
-        ('FONTNAME',    (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('FONTNAME',    (0, -1), (-1, -1), _fnb),
         ('FONTSIZE',    (0, -1), (-1, -1), 11),
         ('BACKGROUND',  (0, -1), (-1, -1), ac),
         ('TEXTCOLOR',   (0, -1), (-1, -1), pc),
@@ -571,19 +593,20 @@ def make_pdf_salesperson(c: dict) -> bytes:
     p_c = _prev_sp_map.get(c['salesperson_name'], {})
     if p_c:
         story.append(Spacer(1, 14))
-        story.append(Paragraph(f"Quarter-over-Quarter vs {_prev_label}", sec_st))
+        story.append(Paragraph(
+            _c(f"{_t('QoQ Comparison')} vs {_prev_label}"), sec_st))
         ps_v = p_c.get('total_actual', 0)
         pc_v = p_c.get('final_commission', 0)
         pa_v = p_c.get('achievement', 0)
         qoq_data = [
-            ["Metric", _prev_label, period_label, "Growth QoQ"],
-            ["Total Sales",
+            [_c(_t("Metric")), _prev_label, period_label, _c(_t("Growth QoQ"))],
+            [_c(_t("Total Sales")),
              f"SAR {ps_v:,.0f}", f"SAR {c['total_actual']:,.0f}",
              _qoq_g(c['total_actual'], ps_v)],
-            ["Achievement %",
+            [_c(_t("Achievement %")),
              f"{pa_v:.1f}%", f"{c['achievement']:.1f}%",
              f"{c['achievement'] - pa_v:+.1f} pp"],
-            ["Final Commission",
+            [_c(_t("Final Commission")),
              f"SAR {pc_v:,.0f}", f"SAR {c['final_commission']:,.0f}",
              _qoq_g(c['final_commission'], pc_v)],
         ]
@@ -591,13 +614,14 @@ def make_pdf_salesperson(c: dict) -> bytes:
         qtbl.setStyle(TableStyle([
             ('BACKGROUND',   (0, 0), (-1, 0),  pc),
             ('TEXTCOLOR',    (0, 0), (-1, 0),  HexColor('#ffffff')),
-            ('FONTNAME',     (0, 0), (-1, 0),  'Helvetica-Bold'),
+            ('FONTNAME',     (0, 0), (-1, -1), _fn),
+            ('FONTNAME',     (0, 0), (-1, 0),  _fnb),
             ('FONTSIZE',     (0, 0), (-1, -1), 8),
             ('GRID',         (0, 0), (-1, -1), 0.3, HexColor('#dde5ea')),
             ('PADDING',      (0, 0), (-1, -1), 5),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1),
              [HexColor('#ffffff'), HexColor('#f7f9fb')]),
-            ('FONTNAME',     (-1, 1), (-1, -1), 'Helvetica-Bold'),
+            ('FONTNAME',     (-1, 1), (-1, -1), _fnb),
         ]))
         story.append(qtbl)
 
@@ -611,14 +635,14 @@ def _download_options(key_prefix: str) -> tuple:
     st.markdown(
         f"<div style='font-size:12px;font-weight:600;color:#354f61;"
         f"text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px'>"
-        f"⬇️ {t('Report Options')}</div>",
+        f"{t('Report Options')}</div>",
         unsafe_allow_html=True,
     )
     oc1, oc2 = st.columns(2)
     with oc1:
         lang_sel = st.radio(
             t("Report Language"),
-            ["🇺🇸 English", "🇸🇦 العربية"],
+            ["English", "العربية"],
             index=1 if is_rtl() else 0,
             horizontal=False,
             key=f"{key_prefix}_lang",
@@ -626,15 +650,12 @@ def _download_options(key_prefix: str) -> tuple:
     with oc2:
         fmt_sel = st.radio(
             t("Format"),
-            ["📊 Excel", "📄 PDF"],
+            ["Excel", "PDF"],
             horizontal=False,
             key=f"{key_prefix}_fmt",
         )
-    _lang = 'ar' if '🇸🇦' in lang_sel else 'en'
-    _pdf  = "PDF" in fmt_sel
-    if _pdf and _lang == 'ar':
-        st.caption(t("📌 PDF is English only. Choose Excel for Arabic output."))
-        _lang = 'en'
+    _lang = 'ar' if 'العربية' in lang_sel else 'en'
+    _pdf  = fmt_sel == "PDF"
     return _lang, _pdf
 
 
@@ -660,15 +681,15 @@ with tab_company:
     _dl_lang_co, _dl_pdf_co = _download_options("co")
     if _dl_pdf_co:
         st.download_button(
-            label=f"📄 {t('Download PDF')}",
-            data=make_pdf_company(),
+            label=t('Download PDF'),
+            data=make_pdf_company(lang=_dl_lang_co),
             file_name=f"{COMPANY}_{period_label.replace(' ','_')}_Report.pdf",
             mime="application/pdf",
             type="primary", use_container_width=True,
         )
     else:
         st.download_button(
-            label=f"📊 {t('Download Excel')}",
+            label=t('Download Excel'),
             data=make_excel_company(lang=_dl_lang_co),
             file_name=f"{COMPANY}_{period_label.replace(' ','_')}_Report.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -718,15 +739,15 @@ with tab_branch:
             _dl_lang_br, _dl_pdf_br = _download_options("br")
             if _dl_pdf_br:
                 st.download_button(
-                    label=f"📄 {t('Download PDF')}",
-                    data=make_pdf_branch(sel_br, br_persons),
+                    label=t('Download PDF'),
+                    data=make_pdf_branch(sel_br, br_persons, lang=_dl_lang_br),
                     file_name=f"{sel_br}_{period_label.replace(' ','_')}_Branch.pdf",
                     mime="application/pdf",
                     use_container_width=True,
                 )
             else:
                 st.download_button(
-                    label=f"📊 {t('Download {branch} — Excel').format(branch=sel_br)}",
+                    label=t('Download {branch} — Excel').format(branch=sel_br),
                     data=make_excel_branch(sel_br, br_persons, lang=_dl_lang_br),
                     file_name=f"{sel_br}_{period_label.replace(' ','_')}_Branch.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -738,15 +759,15 @@ with tab_branch:
         _dl_lang_all, _dl_pdf_all = _download_options("br_all")
         if _dl_pdf_all:
             st.download_button(
-                label=f"📄 {t('Download PDF')}",
-                data=make_pdf_company(),
+                label=t('Download PDF'),
+                data=make_pdf_company(lang=_dl_lang_all),
                 file_name=f"AllBranches_{period_label.replace(' ','_')}_Report.pdf",
                 mime="application/pdf",
                 use_container_width=True,
             )
         else:
             st.download_button(
-                label=f"📊 {t('Download All Branches (one file)')}",
+                label=t('Download All Branches (one file)'),
                 data=make_excel_company(lang=_dl_lang_all),
                 file_name=f"AllBranches_{period_label.replace(' ','_')}_Report.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -782,15 +803,15 @@ with tab_person:
             _dl_lang_sp, _dl_pdf_sp = _download_options("sp")
             if _dl_pdf_sp:
                 st.download_button(
-                    label=f"📄 {t('Download PDF')}",
-                    data=make_pdf_salesperson(sel_c),
+                    label=t('Download PDF'),
+                    data=make_pdf_salesperson(sel_c, lang=_dl_lang_sp),
                     file_name=f"{selected_sp.replace(' ','_')}_{period_label.replace(' ','_')}.pdf",
                     mime="application/pdf",
                     use_container_width=True,
                 )
             else:
                 st.download_button(
-                    label=f"📊 {t('Download Excel')}",
+                    label=t('Download Excel'),
                     data=make_excel_salesperson(sel_c, lang=_dl_lang_sp),
                     file_name=f"{selected_sp.replace(' ','_')}_{period_label.replace(' ','_')}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

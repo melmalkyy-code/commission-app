@@ -140,7 +140,7 @@ def _auto_save_kpi():
             changed = True
     if changed:
         st.cache_data.clear()
-        st.toast(t("KPI changes saved"), icon="✅")
+        st.toast(t("KPI changes saved"))
 
 
 _auto_save_kpi()

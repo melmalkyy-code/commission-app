@@ -210,14 +210,15 @@ with tabs[3]:
                     msg = str(e).lower()
                     st.error(f"Tier '{tn}' already exists." if "unique" in msg else str(e))
 
-    for _ti, tier in enumerate(tiers):
+    for tier in tiers:
+        _tid   = tier['id']
         total  = sum(tier['targets'].values())
         status = t("Active") if tier['is_active'] else t("Inactive")
         with st.expander(f"[{status}] {tier['name']} — Total: SAR {total:,.0f}"):
-            with st.form(f"tier_edit_{_ti}"):
-                tn     = st.text_input(t("Name"),        tier['name'],               key=f"t_n_{_ti}")
-                td     = st.text_input(t("Description"),  tier.get('description', ''), key=f"t_d_{_ti}")
-                is_act = st.checkbox(t("Active"),         bool(tier['is_active']),    key=f"t_a_{_ti}")
+            with st.form(f"tier_edit_{_tid}"):
+                tn     = st.text_input(t("Name"),        tier['name'],               key=f"t_n_{_tid}")
+                td     = st.text_input(t("Description"),  tier.get('description', ''), key=f"t_d_{_tid}")
+                is_act = st.checkbox(t("Active"),         bool(tier['is_active']),    key=f"t_a_{_tid}")
                 if cats:
                     st.markdown(t("**Category Targets (SAR):**"))
                     cols    = st.columns(len(cats))
@@ -227,7 +228,7 @@ with tabs[3]:
                             cat['name'],
                             min_value=0, step=50000,
                             value=int(tier['targets'].get(cat['id'], 0)),
-                            key=f"t_c_{_ti}_{i}",
+                            key=f"t_c_{_tid}_{cat['id']}",
                         )
                 c1, c2 = st.columns(2)
                 if c1.form_submit_button(t("Save"), type="primary"):
@@ -247,7 +248,7 @@ with tabs[4]:
     st.markdown(f"### {t('Product / Service Categories')}")
     cats = get_categories()
 
-    with st.expander(f"＋ {t('Add New Category')}"):
+    with st.expander(f"+ {t('Add New Category')}"):
         with st.form("add_cat_form"):
             cc1, cc2 = st.columns([3, 1])
             cn = cc1.text_input(t("Category Name *"), key="new_cat_name")
@@ -291,7 +292,7 @@ with tabs[4]:
         selected_ids = edited_cats.loc[edited_cats["✓"] == True, "ID"].tolist()
         sb_col, db_col, _ = st.columns([2, 3, 7])
 
-        if sb_col.button(t("💾 Save Changes"), type="primary", key="save_cats", use_container_width=True):
+        if sb_col.button(t("Save Changes"), type="primary", key="save_cats", use_container_width=True):
             for _, row in edited_cats.iterrows():
                 update_category(int(row['ID']), row[_cn], int(row[_co]),
                                 bool(row[_ct]), bool(row[_cc]),
@@ -300,8 +301,8 @@ with tabs[4]:
             st.success(t("Categories saved."))
             st.rerun()
 
-        del_label = (f"🗑 Delete {len(selected_ids)} Selected"
-                     if selected_ids else "🗑 Delete Selected")
+        del_label = (f"Delete {len(selected_ids)} Selected"
+                     if selected_ids else "Delete Selected")
         if db_col.button(del_label, type="secondary", key="del_cats",
                          use_container_width=True, disabled=not selected_ids):
             for cid in selected_ids:
@@ -316,7 +317,7 @@ with tabs[4]:
             )
             st.rerun()
     else:
-        st.info(t("No categories yet. Use '＋ Add New Category' above to get started."))
+        st.info(t("No categories yet. Use '+ Add New Category' above to get started."))
 
 
 # ── COMMISSION BRACKETS ───────────────────────────────────────────────────────
@@ -376,7 +377,7 @@ with tabs[5]:
                 selected_br_ids = edited_br.loc[edited_br["✓"] == True, "ID"].tolist()
                 sb1, sb2, _ = st.columns([2, 3, 7])
 
-                if sb1.button(t("💾 Save Brackets"), type="primary",
+                if sb1.button(t("Save Brackets"), type="primary",
                               key="save_brackets", use_container_width=True):
                     for _, row in edited_br.iterrows():
                         to_amt = None if row[_bunlim] else row[_bto]
@@ -387,8 +388,8 @@ with tabs[5]:
                     st.success(t("Brackets saved."))
                     st.rerun()
 
-                del_br_label = (f"🗑 Delete {len(selected_br_ids)} Selected"
-                                if selected_br_ids else "🗑 Delete Selected")
+                del_br_label = (f"Delete {len(selected_br_ids)} Selected"
+                                if selected_br_ids else "Delete Selected")
                 if sb2.button(del_br_label, type="secondary", key="del_brackets",
                               use_container_width=True, disabled=not selected_br_ids):
                     for bid in selected_br_ids:
@@ -402,7 +403,7 @@ with tabs[5]:
             else:
                 st.info(t("No brackets yet for this category. Add one below."))
 
-            with st.expander(f"＋ {t('Add New Bracket')}"):
+            with st.expander(f"+ {t('Add New Bracket')}"):
                 with st.form(f"add_bracket_form_{cat_obj['id']}"):
                     c1, c2, c3 = st.columns(3)
                     frm       = c1.number_input(t("From (SAR)"), min_value=0, step=50000, key="new_br_from")

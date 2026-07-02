@@ -109,7 +109,7 @@ def _auto_save_sales():
             save_sale(period['id'], sp_id, cat_id, val)
         st.cache_data.clear()
         log_action("SALES_AUTO_SAVE", "sales_records", notes=f"Q{quarter} {year}")
-        st.toast(t("Changes saved"), icon="✅")
+        st.toast(t("Changes saved"))
 
 _auto_save_sales()
 

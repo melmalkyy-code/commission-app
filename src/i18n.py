@@ -196,8 +196,8 @@ _AR: dict[str, str] = {
     "Settings & Configuration": "الإعدادات",
     "Manage all system settings, targets, and commission rules":
         "إدارة الإعدادات، المستهدفات، وقواعد العمولات",
-    "⛔ Access denied. Settings are only available to administrators.":
-        "⛔ غير مصرح بالوصول. الإعدادات متاحة للمسؤولين فقط.",
+    "Access denied. Settings are only available to administrators.":
+        "غير مصرح بالوصول. الإعدادات متاحة للمسؤولين فقط.",
     "Branding":              "هوية الشركة",
     "Company Branding":      "هوية الشركة",
     "Company Name":          "اسم الشركة",
@@ -236,7 +236,7 @@ _AR: dict[str, str] = {
     "In Target":             "في المستهدف",
     "In Commission":         "في العمولة",
     "In KPI":                "في الأداء",
-    "💾 Save Changes":       "💾 حفظ التغييرات",
+    "Save Changes":          "حفظ التغييرات",
     "Categories saved.":     "تم حفظ الفئات.",
     "Category Commission Brackets": "شرائح العمولات",
     "Comm. Brackets":        "شرائح العمولات",
@@ -249,7 +249,7 @@ _AR: dict[str, str] = {
     "Rate %":                "النسبة %",
     "Unlimited upper range (last bracket)": "نطاق غير محدود (آخر شريحة)",
     "Add Bracket":           "إضافة شريحة",
-    "💾 Save Brackets":      "💾 حفظ الشرائح",
+    "Save Brackets":         "حفظ الشرائح",
     "Brackets saved.":       "تم حفظ الشرائح.",
     "No brackets yet for this category. Add one below.":
         "لا توجد شرائح لهذه الفئة. أضف واحدة أدناه.",
@@ -350,12 +350,10 @@ _AR: dict[str, str] = {
     "Format":              "الصيغة",
     "Download Report":     "تحميل التقرير",
     "Report Options":      "خيارات التقرير",
-    "🇺🇸 English":         "🇺🇸 English",
-    "🇸🇦 العربية":         "🇸🇦 العربية",
-    "📊 Excel":            "📊 Excel",
-    "📄 PDF":              "📄 PDF",
-    "📌 PDF is English only. Choose Excel for Arabic output.":
-        "📌 ملف PDF باللغة الإنجليزية فقط. اختر إكسل للحصول على مخرجات عربية.",
+    "English":             "English",
+    "Arabic":              "عربي",
+    "PDF is English only. Choose Excel for Arabic output.":
+        "ملف PDF باللغة الإنجليزية فقط. اختر إكسل للحصول على مخرجات عربية.",
 
     # ── Excel / Report Headers ───────────────────────────────────────────────
     "Value":                     "القيمة",
@@ -422,13 +420,13 @@ def lang_switcher() -> None:
     st.sidebar.markdown(
         "<div style='text-align:center;font-size:10px;text-transform:uppercase;"
         "letter-spacing:.1em;color:rgba(255,255,255,0.4);margin:10px 0 6px'>"
-        "🌐 Language / اللغة</div>",
+        "Language / اللغة</div>",
         unsafe_allow_html=True,
     )
     col_en, col_ar = st.sidebar.columns(2)
     with col_en:
         if st.button(
-            "🇺🇸 English", key="_lang_en",
+            "EN", key="_lang_en",
             type="primary" if lang == 'en' else "secondary",
             use_container_width=True,
         ):
@@ -436,7 +434,7 @@ def lang_switcher() -> None:
             st.rerun()
     with col_ar:
         if st.button(
-            "🇸🇦 عربي", key="_lang_ar",
+            "عربي", key="_lang_ar",
             type="primary" if lang == 'ar' else "secondary",
             use_container_width=True,
         ):

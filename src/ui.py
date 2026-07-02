@@ -295,7 +295,7 @@ def inject_css(primary: str = "#354f61") -> None:
     css = f"<style>{_CSS.format(font=_FONT)}</style>"
     if is_rtl():
         css += f"<style>{_RTL_CSS.format(font_ar=_FONT_AR)}</style>"
-    st.markdown(css, unsafe_allow_html=True)
+    st.html(css)
 
 
 def page_header(title: str, subtitle: str = "", primary: str = "#354f61") -> None:
@@ -314,16 +314,16 @@ def page_header(title: str, subtitle: str = "", primary: str = "#354f61") -> Non
 def sidebar_nav() -> None:
     """Render translated page navigation links in the sidebar."""
     _pages = [
-        ("Home.py",               "🏠", "Dashboard"),
-        ("pages/2_Sales.py",      "📊", "Sales Input"),
-        ("pages/3_KPI.py",        "🎯", "KPI Calculation"),
-        ("pages/4_Commission.py", "💰", "Commission Report"),
-        ("pages/5_Reports.py",    "📑", "Reports Center"),
-        ("pages/6_Settings.py",   "⚙️", "Settings"),
-        ("pages/7_Audit.py",      "📋", "Audit Log"),
+        ("Home.py",               "Dashboard"),
+        ("pages/2_Sales.py",      "Sales Input"),
+        ("pages/3_KPI.py",        "KPI Calculation"),
+        ("pages/4_Commission.py", "Commission Report"),
+        ("pages/5_Reports.py",    "Reports Center"),
+        ("pages/6_Settings.py",   "Settings"),
+        ("pages/7_Audit.py",      "Audit Log"),
     ]
-    for _path, _icon, _label in _pages:
-        st.sidebar.page_link(_path, label=f"{_icon} {t(_label)}")
+    for _path, _label in _pages:
+        st.sidebar.page_link(_path, label=t(_label))
     st.sidebar.markdown("---")
 
 
