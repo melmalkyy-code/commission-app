@@ -81,6 +81,16 @@ html, body, [class*="css"], .stApp {{
   border-color: rgba(255,255,255,0.15) !important;
   color: rgba(255,255,255,0.85) !important;
 }}
+/* Language switcher — active = SE gold, inactive = glass */
+[data-testid="stSidebar"] .stButton button[kind="primary"],
+[data-testid="stSidebar"] .stButton button[data-testid="baseButton-primary"] {{
+  background: #f6ba3b !important;
+  border-color: #f6ba3b !important;
+  color: #1a2b38 !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(246,186,59,0.3) !important;
+}}
 
 /* ── Headings ── */
 h1, h2, h3, h4, h5, h6 {{

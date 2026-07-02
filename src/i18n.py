@@ -344,6 +344,19 @@ _AR: dict[str, str] = {
     "Enter username": "أدخل اسم المستخدم",
     "Enter password": "أدخل كلمة المرور",
 
+    # ── Report Download UI ───────────────────────────────────────────────────
+    "Report Language":     "لغة التقرير",
+    "Language":            "اللغة",
+    "Format":              "الصيغة",
+    "Download Report":     "تحميل التقرير",
+    "Report Options":      "خيارات التقرير",
+    "🇺🇸 English":         "🇺🇸 English",
+    "🇸🇦 العربية":         "🇸🇦 العربية",
+    "📊 Excel":            "📊 Excel",
+    "📄 PDF":              "📄 PDF",
+    "📌 PDF is English only. Choose Excel for Arabic output.":
+        "📌 ملف PDF باللغة الإنجليزية فقط. اختر إكسل للحصول على مخرجات عربية.",
+
     # ── Excel / Report Headers ───────────────────────────────────────────────
     "Value":                     "القيمة",
     "TOTAL":                     "الإجمالي",
@@ -388,6 +401,14 @@ def t(text: str) -> str:
     return _AR.get(text, text)
 
 
+def tl(text: str, lang: str) -> str:
+    """Translate with an explicit language parameter — for report generators
+    that must produce a specific language regardless of the current UI language."""
+    if lang != 'ar':
+        return text
+    return _AR.get(text, text)
+
+
 def q_label(q: int) -> str:
     """Format a quarter number for display (e.g. 2 → 'Q2' or 'الربع الثاني')."""
     if get_lang() != 'ar':
@@ -396,12 +417,18 @@ def q_label(q: int) -> str:
 
 
 def lang_switcher() -> None:
-    """Render the EN / عربي toggle in the sidebar."""
+    """Render the language toggle in the sidebar."""
     lang = get_lang()
+    st.sidebar.markdown(
+        "<div style='text-align:center;font-size:10px;text-transform:uppercase;"
+        "letter-spacing:.1em;color:rgba(255,255,255,0.4);margin:10px 0 6px'>"
+        "🌐 Language / اللغة</div>",
+        unsafe_allow_html=True,
+    )
     col_en, col_ar = st.sidebar.columns(2)
     with col_en:
         if st.button(
-            "🌐 EN", key="_lang_en",
+            "🇺🇸 English", key="_lang_en",
             type="primary" if lang == 'en' else "secondary",
             use_container_width=True,
         ):
@@ -409,10 +436,10 @@ def lang_switcher() -> None:
             st.rerun()
     with col_ar:
         if st.button(
-            "🌐 عربي", key="_lang_ar",
+            "🇸🇦 عربي", key="_lang_ar",
             type="primary" if lang == 'ar' else "secondary",
             use_container_width=True,
         ):
             st.session_state[_LANG_KEY] = 'ar'
             st.rerun()
-    st.sidebar.markdown("---")
+    st.sidebar.markdown("<div style='margin-bottom:4px'></div>", unsafe_allow_html=True)

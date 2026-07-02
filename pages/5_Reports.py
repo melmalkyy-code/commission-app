@@ -9,7 +9,7 @@ from src.models import get_setting, get_or_create_period, get_period, get_branch
 from src.calculations import calc_all_commissions, get_totals
 
 from src.ui import inject_css, page_header, sidebar_logo
-from src.i18n import t, q_label, is_rtl
+from src.i18n import t, tl, q_label, is_rtl
 
 PRIMARY = get_setting('primary_color', '#354f61')
 ACCENT  = get_setting('accent_color', '#f6ba3b')
@@ -89,42 +89,41 @@ def _insert_logo_xl(ws):
 
 
 # ─── Company Excel ────────────────────────────────────────────────────────────
-def make_excel_company() -> bytes:
+def make_excel_company(lang: str = 'en') -> bytes:
     from openpyxl import Workbook
     wb = Workbook()
     ph = PRIMARY.lstrip('#')
-    ah = ACCENT.lstrip('#')
-
-    _rtl = is_rtl()
+    def _t(s): return tl(s, lang)
+    _rtl = lang == 'ar'
 
     # Sheet 1: Summary
     ws = wb.active
-    ws.title = t("Company Summary")
+    ws.title = _t("Company Summary")
     if _rtl: ws.sheet_view.rightToLeft = True
-    ws.append([COMPANY, "", f"{t('Commission Report')} - {period_label}"])
+    ws.append([COMPANY, "", f"{_t('Commission Report')} - {period_label}"])
     _fill_row(ws, 1, PRIMARY)
     _insert_logo_xl(ws)
     ws.append([])
-    ws.append([t("Metric"), t("Value")])
+    ws.append([_t("Metric"), _t("Value")])
     _fill_row(ws, 3, PRIMARY)
     for row in [
-        (t("Total Sales (SAR)"),      round(totals['total_sales'], 0)),
-        (t("Total Target (SAR)"),     round(totals['total_target'], 0)),
-        (t("Achievement %"),          round(totals['achievement'], 1)),
-        (t("Base Commission (SAR)"),  round(totals['total_base'], 0)),
-        (t("Final Commission (SAR)"), round(totals['total_final'], 0)),
-        (t("Total Salespersons"),     totals['total_count']),
-        (t("Achieved Target"),        totals['achieved_count']),
+        (_t("Total Sales (SAR)"),      round(totals['total_sales'], 0)),
+        (_t("Total Target (SAR)"),     round(totals['total_target'], 0)),
+        (_t("Achievement %"),          round(totals['achievement'], 1)),
+        (_t("Base Commission (SAR)"),  round(totals['total_base'], 0)),
+        (_t("Final Commission (SAR)"), round(totals['total_final'], 0)),
+        (_t("Total Salespersons"),     totals['total_count']),
+        (_t("Achieved Target"),        totals['achieved_count']),
     ]:
         ws.append(list(row))
     _auto_width(ws)
 
     # Sheet 2: All Salespersons
-    ws2 = wb.create_sheet(t("All Salespersons"))
+    ws2 = wb.create_sheet(_t("All Salespersons"))
     if _rtl: ws2.sheet_view.rightToLeft = True
-    h2 = [t("Salesperson"), t("Branch"), t("Tier"), t("Total Sales"), t("Target"),
-          t("Achievement %"), t("Base Comm."), t("KPI Score"), t("KPI Multiplier"), t("Final Comm.")]
-    ws2.append(h2)
+    ws2.append([_t("Salesperson"), _t("Branch"), _t("Tier"), _t("Total Sales"), _t("Target"),
+                _t("Achievement %"), _t("Base Comm."), _t("KPI Score"),
+                _t("KPI Multiplier"), _t("Final Comm.")])
     _fill_row(ws2, 1, PRIMARY)
     for c in commissions:
         ws2.append([c['salesperson_name'], c['branch_name'], c['tier_name'],
@@ -135,12 +134,12 @@ def make_excel_company() -> bytes:
     _auto_width(ws2)
 
     # Sheet 3: By Branch
-    ws3 = wb.create_sheet(t("By Branch"))
+    ws3 = wb.create_sheet(_t("By Branch"))
     if _rtl: ws3.sheet_view.rightToLeft = True
-    ws3.append([t("Branch"), t("Salespersons"), t("Total Sales"), t("Target"),
-                t("Achievement %"), t("Base Comm."), t("Final Comm.")])
+    ws3.append([_t("Branch"), _t("Salespersons"), _t("Total Sales"), _t("Target"),
+                _t("Achievement %"), _t("Base Comm."), _t("Final Comm.")])
     _fill_row(ws3, 1, PRIMARY)
-    branch_map = {}
+    branch_map: dict = {}
     for c in commissions:
         b = c['branch_name'] or 'Unknown'
         if b not in branch_map:
@@ -156,11 +155,11 @@ def make_excel_company() -> bytes:
                     round(ach, 1), round(bv['base'], 0), round(bv['final'], 0)])
     _auto_width(ws3)
 
-    # Sheet 4: Category Breakdown
-    ws4 = wb.create_sheet(t("By Category"))
+    # Sheet 4: By Category
+    ws4 = wb.create_sheet(_t("By Category"))
     if _rtl: ws4.sheet_view.rightToLeft = True
-    ws4.append([t("Branch"), t("Salesperson"), t("Category"), t("Actual Sales"),
-                t("Target"), t("Achievement %"), t("Rate %"), t("Commission")])
+    ws4.append([_t("Branch"), _t("Salesperson"), _t("Category"), _t("Actual Sales"),
+                _t("Target"), _t("Achievement %"), _t("Rate %"), _t("Commission")])
     _fill_row(ws4, 1, PRIMARY)
     for c in commissions:
         for cr in c['categories']:
@@ -172,13 +171,13 @@ def make_excel_company() -> bytes:
 
     # Sheet 5: QoQ Analysis
     if _prev_commissions:
-        ws5 = wb.create_sheet(f"{t('QoQ vs')} {_prev_label}")
+        ws5 = wb.create_sheet(f"{_t('QoQ vs')} {_prev_label}")
         if _rtl: ws5.sheet_view.rightToLeft = True
         ws5.append([
-            t("Salesperson"), t("Branch"),
-            f"{t('Sales')} {_prev_label}", f"{t('Sales')} {period_label}", t("Sales Growth"),
-            f"{t('Final Comm.')} {_prev_label}", f"{t('Final Comm.')} {period_label}", t("Comm. Growth"),
-            f"{t('Ach.')} {_prev_label}", f"{t('Ach.')} {period_label}", t("Ach. Δ pp"),
+            _t("Salesperson"), _t("Branch"),
+            f"{_t('Sales')} {_prev_label}", f"{_t('Sales')} {period_label}", _t("Sales Growth"),
+            f"{_t('Final Comm.')} {_prev_label}", f"{_t('Final Comm.')} {period_label}", _t("Comm. Growth"),
+            f"{_t('Ach.')} {_prev_label}", f"{_t('Ach.')} {period_label}", _t("Ach. Δ pp"),
         ])
         _fill_row(ws5, 1, PRIMARY)
         for c in commissions:
@@ -188,17 +187,14 @@ def make_excel_company() -> bytes:
             pa = p.get('achievement', 0)
             ws5.append([
                 c['salesperson_name'], c['branch_name'],
-                round(ps, 0), round(c['total_actual'], 0),
-                _qoq_g(c['total_actual'], ps),
-                round(pc, 0), round(c['final_commission'], 0),
-                _qoq_g(c['final_commission'], pc),
+                round(ps, 0), round(c['total_actual'], 0), _qoq_g(c['total_actual'], ps),
+                round(pc, 0), round(c['final_commission'], 0), _qoq_g(c['final_commission'], pc),
                 round(pa, 1), round(c['achievement'], 1),
                 round(c['achievement'] - pa, 1),
             ])
-        # Company totals row
         ws5.append([])
         ws5.append([
-            t("COMPANY TOTAL"), "",
+            _t("COMPANY TOTAL"), "",
             round(_prev_totals['total_sales'], 0), round(totals['total_sales'], 0),
             _qoq_g(totals['total_sales'], _prev_totals['total_sales']),
             round(_prev_totals['total_final'], 0), round(totals['total_final'], 0),
@@ -206,8 +202,7 @@ def make_excel_company() -> bytes:
             round(_prev_totals['achievement'], 1), round(totals['achievement'], 1),
             round(totals['achievement'] - _prev_totals['achievement'], 1),
         ])
-        _fill_row(ws5, ws5.max_row, ACCENT,
-                  font_hex=ph, bold=True)
+        _fill_row(ws5, ws5.max_row, ACCENT, font_hex=ph, bold=True)
         _auto_width(ws5)
 
     buf = io.BytesIO()
@@ -216,20 +211,21 @@ def make_excel_company() -> bytes:
 
 
 # ─── Branch Excel ─────────────────────────────────────────────────────────────
-def make_excel_branch(branch_name: str, persons: list) -> bytes:
+def make_excel_branch(branch_name: str, persons: list, lang: str = 'en') -> bytes:
     from openpyxl import Workbook
     wb = Workbook()
     ws = wb.active
-    ws.title = t("Branch Report")
-    if is_rtl(): ws.sheet_view.rightToLeft = True
+    def _t(s): return tl(s, lang)
+    ws.title = _t("Branch Report")
+    if lang == 'ar': ws.sheet_view.rightToLeft = True
     ws.append([COMPANY, branch_name, period_label])
     _fill_row(ws, 1, PRIMARY)
     _insert_logo_xl(ws)
     ws.append([])
-    ws.append([t("Salesperson"), t("Tier"), t("Sales"), t("Target"), t("Achievement %"),
-               t("Base Comm."), t("KPI Score"), t("KPI x"), t("Final Comm."),
-               f"{t('Sales')} {_prev_label}", t("Sales Growth"),
-               f"{t('Final Comm.')} {_prev_label}", t("Comm. Growth")])
+    ws.append([_t("Salesperson"), _t("Tier"), _t("Sales"), _t("Target"), _t("Achievement %"),
+               _t("Base Comm."), _t("KPI Score"), _t("KPI x"), _t("Final Comm."),
+               f"{_t('Sales')} {_prev_label}", _t("Sales Growth"),
+               f"{_t('Final Comm.')} {_prev_label}", _t("Comm. Growth")])
     _fill_row(ws, 3, PRIMARY)
     for c in persons:
         p  = _prev_sp_map.get(c['salesperson_name'], {})
@@ -251,7 +247,7 @@ def make_excel_branch(branch_name: str, persons: list) -> bytes:
     b_final  = sum(c['final_commission'] for c in persons)
     pb_sales = sum(_prev_sp_map.get(c['salesperson_name'], {}).get('total_actual', 0) for c in persons)
     pb_final = sum(_prev_sp_map.get(c['salesperson_name'], {}).get('final_commission', 0) for c in persons)
-    ws.append([t("TOTAL"), "", round(b_sales, 0), round(b_target, 0), "", "", "", "",
+    ws.append([_t("TOTAL"), "", round(b_sales, 0), round(b_target, 0), "", "", "", "",
                round(b_final, 0),
                round(pb_sales, 0), _qoq_g(b_sales, pb_sales),
                round(pb_final, 0), _qoq_g(b_final, pb_final)])
@@ -263,18 +259,19 @@ def make_excel_branch(branch_name: str, persons: list) -> bytes:
 
 
 # ─── Salesperson Excel ────────────────────────────────────────────────────────
-def make_excel_salesperson(c: dict) -> bytes:
+def make_excel_salesperson(c: dict, lang: str = 'en') -> bytes:
     from openpyxl import Workbook
     wb = Workbook()
     ws = wb.active
-    ws.title = t("Commission Report")
-    if is_rtl(): ws.sheet_view.rightToLeft = True
+    def _t(s): return tl(s, lang)
+    ws.title = _t("Commission Report")
+    if lang == 'ar': ws.sheet_view.rightToLeft = True
     ws.append([COMPANY, period_label, c['salesperson_name'], c['branch_name'], c['tier_name']])
     _fill_row(ws, 1, PRIMARY)
     _insert_logo_xl(ws)
     ws.append([])
-    ws.append([t("Category"), t("Actual Sales"), t("Target"), t("Achievement %"),
-               t("Bracket"), t("Rate %"), t("Commission")])
+    ws.append([_t("Category"), _t("Actual Sales"), _t("Target"), _t("Achievement %"),
+               _t("Bracket"), _t("Rate %"), _t("Commission")])
     _fill_row(ws, 3, PRIMARY)
     for cr in c['categories']:
         ach = (cr['actual_sales'] / cr['target'] * 100) if cr['target'] else 0
@@ -282,39 +279,189 @@ def make_excel_salesperson(c: dict) -> bytes:
                    round(cr['target'], 0), round(ach, 1),
                    cr['bracket'], round(cr['rate'], 2), round(cr['commission'], 0)])
     ws.append([])
-    for label, val in [(t("Base Commission"), round(c['base_commission'], 0)),
-                       (t("KPI Score"),        round(c['kpi_score'], 2)),
-                       (t("KPI Multiplier"),   c['kpi_multiplier']),
-                       (t("FINAL COMMISSION"), round(c['final_commission'], 0))]:
+    for label, val in [(_t("Base Commission"), round(c['base_commission'], 0)),
+                       (_t("KPI Score"),        round(c['kpi_score'], 2)),
+                       (_t("KPI Multiplier"),   c['kpi_multiplier']),
+                       (_t("FINAL COMMISSION"), round(c['final_commission'], 0))]:
         ws.append([label, val])
     _fill_row(ws, ws.max_row, ACCENT, font_hex=PRIMARY.lstrip('#'), bold=True)
 
     # QoQ comparison sheet
     p  = _prev_sp_map.get(c['salesperson_name'], {})
     if p:
-        ws2 = wb.create_sheet(f"{t('QoQ vs')} {_prev_label}")
-        if is_rtl(): ws2.sheet_view.rightToLeft = True
-        ws2.append([f"{t('QoQ Comparison')}: {c['salesperson_name']}",
-                    _prev_label, period_label, t("Growth QoQ")])
+        ws2 = wb.create_sheet(f"{_t('QoQ vs')} {_prev_label}")
+        if lang == 'ar': ws2.sheet_view.rightToLeft = True
+        ws2.append([f"{_t('QoQ Comparison')}: {c['salesperson_name']}",
+                    _prev_label, period_label, _t("Growth QoQ")])
         _fill_row(ws2, 1, PRIMARY)
         ps = p.get('total_actual', 0)
         pc = p.get('final_commission', 0)
         pa = p.get('achievement', 0)
         for lbl, pv, cv in [
-            (t("Total Sales"),      ps,                   c['total_actual']),
-            (t("Achievement %"),    pa,                   c['achievement']),
-            (t("Base Commission"),  p.get('base_commission', 0), c['base_commission']),
-            (t("Final Commission"), pc,                   c['final_commission']),
+            (_t("Total Sales"),      ps,                   c['total_actual']),
+            (_t("Achievement %"),    pa,                   c['achievement']),
+            (_t("Base Commission"),  p.get('base_commission', 0), c['base_commission']),
+            (_t("Final Commission"), pc,                   c['final_commission']),
         ]:
             ws2.append([lbl, round(pv, 1), round(cv, 1), _qoq_g(cv, pv)])
         ws2.append([])
-        ws2.append([t("FINAL COMMISSION GROWTH"), "", "", _qoq_g(c['final_commission'], pc)])
+        ws2.append([_t("FINAL COMMISSION GROWTH"), "", "", _qoq_g(c['final_commission'], pc)])
         _fill_row(ws2, ws2.max_row, ACCENT, font_hex=PRIMARY.lstrip('#'), bold=True)
         _auto_width(ws2)
 
     _auto_width(ws)
     buf = io.BytesIO()
     wb.save(buf)
+    return buf.getvalue()
+
+
+# ─── Company PDF ─────────────────────────────────────────────────────────────
+def make_pdf_company() -> bytes:
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
+                                    Table, TableStyle, HRFlowable)
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.colors import HexColor
+    from reportlab.lib.pagesizes import A4
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=40, rightMargin=40,
+                            topMargin=50, bottomMargin=50)
+    styles = getSampleStyleSheet()
+    pc = HexColor(PRIMARY)
+    ac = HexColor(ACCENT)
+    story = []
+
+    title_st = ParagraphStyle('T', parent=styles['Title'], fontSize=16, textColor=pc)
+    sub_st   = ParagraphStyle('S', parent=styles['Normal'], fontSize=10,
+                               textColor=HexColor('#5a7080'))
+    sec_st   = ParagraphStyle('Sec', parent=styles['Normal'], fontSize=11,
+                               fontName='Helvetica-Bold', textColor=pc,
+                               spaceBefore=12, spaceAfter=6)
+
+    story.append(Paragraph(COMPANY, title_st))
+    story.append(Paragraph(f"Commission Report | {period_label}", sub_st))
+    story.append(HRFlowable(width="100%", thickness=2, color=pc))
+    story.append(Spacer(1, 10))
+
+    # Summary table
+    story.append(Paragraph("Company Summary", sec_st))
+    summary_data = [
+        ["Metric", "Value"],
+        ["Total Sales (SAR)",      f"SAR {totals['total_sales']:,.0f}"],
+        ["Total Target (SAR)",     f"SAR {totals['total_target']:,.0f}"],
+        ["Achievement %",          f"{totals['achievement']:.1f}%"],
+        ["Base Commission (SAR)",  f"SAR {totals['total_base']:,.0f}"],
+        ["Final Commission (SAR)", f"SAR {totals['total_final']:,.0f}"],
+        ["Total Salespersons",     str(totals['total_count'])],
+        ["Achieved Target",        str(totals['achieved_count'])],
+    ]
+    stbl = Table(summary_data, colWidths=[250, 180], hAlign='LEFT')
+    stbl.setStyle(TableStyle([
+        ('BACKGROUND',     (0, 0), (-1, 0),  pc),
+        ('TEXTCOLOR',      (0, 0), (-1, 0),  HexColor('#ffffff')),
+        ('FONTNAME',       (0, 0), (-1, 0),  'Helvetica-Bold'),
+        ('FONTSIZE',       (0, 0), (-1, -1), 9),
+        ('GRID',           (0, 0), (-1, -1), 0.3, HexColor('#dde5ea')),
+        ('PADDING',        (0, 0), (-1, -1), 6),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1),
+         [HexColor('#ffffff'), HexColor('#f7f9fb')]),
+    ]))
+    story.append(stbl)
+    story.append(Spacer(1, 14))
+
+    # All salespersons table
+    story.append(Paragraph("All Salespersons", sec_st))
+    sp_data = [["Salesperson", "Branch", "Tier", "Sales (SAR)",
+                "Ach %", "KPI Mult.", "Final Comm. (SAR)"]]
+    for c in commissions:
+        sp_data.append([
+            c['salesperson_name'], c['branch_name'] or '', c['tier_name'] or '',
+            f"{c['total_actual']:,.0f}", f"{c['achievement']:.1f}%",
+            f"x{c['kpi_multiplier']}", f"{c['final_commission']:,.0f}",
+        ])
+    sp_tbl = Table(sp_data, hAlign='LEFT', repeatRows=1)
+    sp_tbl.setStyle(TableStyle([
+        ('BACKGROUND',     (0, 0), (-1, 0),  pc),
+        ('TEXTCOLOR',      (0, 0), (-1, 0),  HexColor('#ffffff')),
+        ('FONTNAME',       (0, 0), (-1, 0),  'Helvetica-Bold'),
+        ('FONTSIZE',       (0, 0), (-1, -1), 7),
+        ('GRID',           (0, 0), (-1, -1), 0.3, HexColor('#dde5ea')),
+        ('PADDING',        (0, 0), (-1, -1), 4),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1),
+         [HexColor('#ffffff'), HexColor('#f7f9fb')]),
+    ]))
+    story.append(sp_tbl)
+
+    doc.build(story)
+    return buf.getvalue()
+
+
+# ─── Branch PDF ───────────────────────────────────────────────────────────────
+def make_pdf_branch(branch_name: str, persons: list) -> bytes:
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
+                                    Table, TableStyle, HRFlowable)
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.colors import HexColor
+    from reportlab.lib.pagesizes import A4
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=40, rightMargin=40,
+                            topMargin=50, bottomMargin=50)
+    styles = getSampleStyleSheet()
+    pc = HexColor(PRIMARY)
+    ac = HexColor(ACCENT)
+    story = []
+
+    title_st = ParagraphStyle('T', parent=styles['Title'], fontSize=16, textColor=pc)
+    sub_st   = ParagraphStyle('S', parent=styles['Normal'], fontSize=10,
+                               textColor=HexColor('#5a7080'))
+    sec_st   = ParagraphStyle('Sec', parent=styles['Normal'], fontSize=11,
+                               fontName='Helvetica-Bold', textColor=pc,
+                               spaceBefore=12, spaceAfter=6)
+
+    story.append(Paragraph(COMPANY, title_st))
+    story.append(Paragraph(f"Branch Report | {branch_name} | {period_label}", sub_st))
+    story.append(HRFlowable(width="100%", thickness=2, color=pc))
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph("Salesperson Breakdown", sec_st))
+    tbl_data = [["Salesperson", "Tier", "Sales (SAR)", "Target (SAR)",
+                 "Ach %", "KPI x", "Final Comm. (SAR)"]]
+    b_sales = b_target = b_final = 0.0
+    for c in persons:
+        ach = (c['total_actual'] / c['total_target'] * 100) if c['total_target'] else 0
+        tbl_data.append([
+            c['salesperson_name'], c['tier_name'] or '',
+            f"{c['total_actual']:,.0f}", f"{c['total_target']:,.0f}",
+            f"{ach:.1f}%", f"x{c['kpi_multiplier']}",
+            f"{c['final_commission']:,.0f}",
+        ])
+        b_sales  += c['total_actual']
+        b_target += c['total_target']
+        b_final  += c['final_commission']
+    tbl_data.append([
+        "TOTAL", "",
+        f"{b_sales:,.0f}", f"{b_target:,.0f}",
+        f"{(b_sales/b_target*100) if b_target else 0:.1f}%", "",
+        f"{b_final:,.0f}",
+    ])
+
+    tbl = Table(tbl_data, hAlign='LEFT', repeatRows=1)
+    tbl.setStyle(TableStyle([
+        ('BACKGROUND',     (0, 0),  (-1, 0),  pc),
+        ('TEXTCOLOR',      (0, 0),  (-1, 0),  HexColor('#ffffff')),
+        ('FONTNAME',       (0, 0),  (-1, 0),  'Helvetica-Bold'),
+        ('BACKGROUND',     (0, -1), (-1, -1), ac),
+        ('FONTNAME',       (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE',       (0, 0),  (-1, -1), 8),
+        ('GRID',           (0, 0),  (-1, -1), 0.3, HexColor('#dde5ea')),
+        ('PADDING',        (0, 0),  (-1, -1), 5),
+        ('ROWBACKGROUNDS', (0, 1),  (-1, -2),
+         [HexColor('#ffffff'), HexColor('#f7f9fb')]),
+    ]))
+    story.append(tbl)
+
+    doc.build(story)
     return buf.getvalue()
 
 
@@ -458,6 +605,39 @@ def make_pdf_salesperson(c: dict) -> bytes:
     return buf.getvalue()
 
 
+# ── Reusable download options widget ─────────────────────────────────────────
+def _download_options(key_prefix: str) -> tuple:
+    """Render language + format selectors. Returns (lang_code, is_pdf)."""
+    st.markdown(
+        f"<div style='font-size:12px;font-weight:600;color:#354f61;"
+        f"text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px'>"
+        f"⬇️ {t('Report Options')}</div>",
+        unsafe_allow_html=True,
+    )
+    oc1, oc2 = st.columns(2)
+    with oc1:
+        lang_sel = st.radio(
+            t("Report Language"),
+            ["🇺🇸 English", "🇸🇦 العربية"],
+            index=1 if is_rtl() else 0,
+            horizontal=False,
+            key=f"{key_prefix}_lang",
+        )
+    with oc2:
+        fmt_sel = st.radio(
+            t("Format"),
+            ["📊 Excel", "📄 PDF"],
+            horizontal=False,
+            key=f"{key_prefix}_fmt",
+        )
+    _lang = 'ar' if '🇸🇦' in lang_sel else 'en'
+    _pdf  = "PDF" in fmt_sel
+    if _pdf and _lang == 'ar':
+        st.caption(t("📌 PDF is English only. Choose Excel for Arabic output."))
+        _lang = 'en'
+    return _lang, _pdf
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # THREE-LEVEL REPORT TABS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -477,14 +657,23 @@ with tab_company:
     c4.metric(t("Final Commission"), f"SAR {totals['total_final']:,.0f}")
 
     st.markdown("---")
-    st.download_button(
-        label=t("Download Company Excel (4 sheets)"),
-        data=make_excel_company(),
-        file_name=f"{COMPANY}_{period_label.replace(' ','_')}_Report.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        type="primary",
-        use_container_width=True,
-    )
+    _dl_lang_co, _dl_pdf_co = _download_options("co")
+    if _dl_pdf_co:
+        st.download_button(
+            label=f"📄 {t('Download PDF')}",
+            data=make_pdf_company(),
+            file_name=f"{COMPANY}_{period_label.replace(' ','_')}_Report.pdf",
+            mime="application/pdf",
+            type="primary", use_container_width=True,
+        )
+    else:
+        st.download_button(
+            label=f"📊 {t('Download Excel')}",
+            data=make_excel_company(lang=_dl_lang_co),
+            file_name=f"{COMPANY}_{period_label.replace(' ','_')}_Report.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type="primary", use_container_width=True,
+        )
     st.caption(t("Includes: Company Summary, All Salespersons, By Branch, Category Breakdown"))
 
 
@@ -494,8 +683,7 @@ with tab_company:
 with tab_branch:
     st.markdown(f"### {t('Branch Reports')} — {period_label}")
 
-    # Build branch groups
-    branch_groups = {}
+    branch_groups: dict = {}
     for c in commissions:
         b = c['branch_name'] or 'Unknown'
         branch_groups.setdefault(b, []).append(c)
@@ -526,24 +714,44 @@ with tab_branch:
                               key="rep_br_sel")
         if sel_br:
             br_persons = branch_groups[sel_br]
-            col_a, col_b = st.columns(2)
-            with col_a:
+            st.markdown(f"**{t('Branch Report')}: {sel_br}**")
+            _dl_lang_br, _dl_pdf_br = _download_options("br")
+            if _dl_pdf_br:
                 st.download_button(
-                    label=t("Download {branch} — Excel").format(branch=sel_br),
-                    data=make_excel_branch(sel_br, br_persons),
+                    label=f"📄 {t('Download PDF')}",
+                    data=make_pdf_branch(sel_br, br_persons),
+                    file_name=f"{sel_br}_{period_label.replace(' ','_')}_Branch.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                )
+            else:
+                st.download_button(
+                    label=f"📊 {t('Download {branch} — Excel').format(branch=sel_br)}",
+                    data=make_excel_branch(sel_br, br_persons, lang=_dl_lang_br),
                     file_name=f"{sel_br}_{period_label.replace(' ','_')}_Branch.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True,
                 )
 
-        # All-branches download button
-        st.download_button(
-            label=t("Download All Branches (one file)"),
-            data=make_excel_company(),
-            file_name=f"AllBranches_{period_label.replace(' ','_')}_Report.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
-        )
+        st.markdown("---")
+        st.markdown(f"**{t('Download All Branches (one file)')}**")
+        _dl_lang_all, _dl_pdf_all = _download_options("br_all")
+        if _dl_pdf_all:
+            st.download_button(
+                label=f"📄 {t('Download PDF')}",
+                data=make_pdf_company(),
+                file_name=f"AllBranches_{period_label.replace(' ','_')}_Report.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+            )
+        else:
+            st.download_button(
+                label=f"📊 {t('Download All Branches (one file)')}",
+                data=make_excel_company(lang=_dl_lang_all),
+                file_name=f"AllBranches_{period_label.replace(' ','_')}_Report.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -565,27 +773,27 @@ with tab_person:
                 f"{sel_c['branch_name']} | {sel_c['tier_name']}"
             )
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric(t("Total Sales"),     f"SAR {sel_c['total_actual']:,.0f}")
-            m2.metric(t("Achievement"),     f"{sel_c['achievement']:.1f}%")
-            m3.metric(t("Base Comm."),      f"SAR {sel_c['base_commission']:,.0f}")
-            m4.metric(t("Final Comm."),     f"SAR {sel_c['final_commission']:,.0f}")
+            m1.metric(t("Total Sales"),  f"SAR {sel_c['total_actual']:,.0f}")
+            m2.metric(t("Achievement"),  f"{sel_c['achievement']:.1f}%")
+            m3.metric(t("Base Comm."),   f"SAR {sel_c['base_commission']:,.0f}")
+            m4.metric(t("Final Comm."),  f"SAR {sel_c['final_commission']:,.0f}")
 
             st.markdown("---")
-            col_xl, col_pdf = st.columns(2)
-            with col_xl:
+            _dl_lang_sp, _dl_pdf_sp = _download_options("sp")
+            if _dl_pdf_sp:
                 st.download_button(
-                    label=t("Download Excel"),
-                    data=make_excel_salesperson(sel_c),
-                    file_name=f"{selected_sp.replace(' ','_')}_{period_label.replace(' ','_')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                )
-            with col_pdf:
-                st.download_button(
-                    label=t("Download PDF"),
+                    label=f"📄 {t('Download PDF')}",
                     data=make_pdf_salesperson(sel_c),
                     file_name=f"{selected_sp.replace(' ','_')}_{period_label.replace(' ','_')}.pdf",
                     mime="application/pdf",
+                    use_container_width=True,
+                )
+            else:
+                st.download_button(
+                    label=f"📊 {t('Download Excel')}",
+                    data=make_excel_salesperson(sel_c, lang=_dl_lang_sp),
+                    file_name=f"{selected_sp.replace(' ','_')}_{period_label.replace(' ','_')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True,
                 )
 
