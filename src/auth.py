@@ -145,69 +145,161 @@ def _show_login():
     except Exception:
         primary, company = '#354f61', 'Surveying Experts'
 
-    st.markdown(f"""
-    <style>
-      .login-wrap {{
-        max-width:420px; margin:60px auto 0;
-      }}
-      .login-header {{
-        background:{primary}; color:#fff; padding:28px 36px 22px;
-        border-radius:12px 12px 0 0; text-align:center;
-      }}
-      .login-body {{
-        background:#fff; padding:28px 36px 32px;
-        border-radius:0 0 12px 12px;
-        box-shadow:0 6px 28px rgba(0,0,0,0.10);
-      }}
-    </style>
-    <div class="login-wrap">
-      <div class="login-header">
-        <p style="font-size:22px;font-weight:700;margin:0;">{company}</p>
-        <p style="font-size:13px;opacity:0.75;margin:6px 0 0;">{t('Commission Manager — Sign In')}</p>
-      </div>
-      <div class="login-body"></div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Language switcher on login page
-    lang_col1, lang_col2, _ = st.columns([1, 1, 4])
     _lang = get_lang()
-    with lang_col1:
-        if st.button("EN", type="primary" if _lang == 'en' else "secondary", key="_login_lang_en"):
+    rtl    = _lang == 'ar'
+    dir_s  = 'rtl' if rtl else 'ltr'
+    font   = "'Cairo',system-ui,sans-serif" if rtl else "'IBM Plex Sans',system-ui,sans-serif"
+    align  = 'right' if rtl else 'left'
+
+    # Full-page styles: gradient background + block-container as the login card
+    st.html(f"""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;700&display=swap');
+
+    #MainMenu, footer, [data-testid="stToolbar"] {{ visibility:hidden !important; }}
+    [data-testid="stSidebar"], [data-testid="stSidebarNav"],
+    [data-testid="collapsedControl"] {{ display:none !important; }}
+
+    html, body, .stApp {{
+        font-family: {font} !important;
+        background: linear-gradient(145deg, {primary} 0%, #1a2b38 55%, #0e1c27 100%) !important;
+        min-height: 100vh !important;
+    }}
+
+    /* The block-container IS the login card */
+    .main .block-container {{
+        max-width: 460px !important;
+        margin: 5vh auto 0 !important;
+        padding: 2.5rem 2.5rem 2rem !important;
+        background: #ffffff !important;
+        border-radius: 20px !important;
+        box-shadow: 0 28px 80px rgba(0,0,0,0.35) !important;
+    }}
+
+    /* Language pill buttons */
+    .stButton > button {{
+        border-radius: 20px !important;
+        font-size: 12px !important;
+        padding: 3px 16px !important;
+        font-weight: 600 !important;
+        font-family: {font} !important;
+        min-height: 32px !important;
+    }}
+
+    /* Input labels */
+    [data-testid="stTextInput"] label,
+    [data-testid="stWidgetLabel"] {{
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        color: #374151 !important;
+        font-family: {font} !important;
+        direction: {dir_s} !important;
+        text-align: {align} !important;
+    }}
+
+    /* Input fields */
+    [data-baseweb="input"] input {{
+        border-radius: 10px !important;
+        font-size: 15px !important;
+        font-family: {font} !important;
+        padding: 12px 14px !important;
+        direction: {dir_s} !important;
+    }}
+
+    /* Remove default form border/bg */
+    .stForm {{
+        border: none !important;
+        padding: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }}
+
+    /* Sign In submit button */
+    [data-testid="stFormSubmitButton"] > button {{
+        background: {primary} !important;
+        border-color: {primary} !important;
+        color: #fff !important;
+        border-radius: 10px !important;
+        height: 50px !important;
+        font-size: 15px !important;
+        font-weight: 700 !important;
+        width: 100% !important;
+        margin-top: 6px !important;
+        font-family: {font} !important;
+        letter-spacing: 0.02em !important;
+        transition: all 0.15s ease !important;
+    }}
+    [data-testid="stFormSubmitButton"] > button:hover {{
+        background: #243949 !important;
+        border-color: #243949 !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 6px 20px rgba(53,79,97,0.35) !important;
+    }}
+
+    /* Alert / error */
+    [data-testid="stAlert"] {{
+        border-radius: 10px !important;
+        font-family: {font} !important;
+        direction: {dir_s} !important;
+    }}
+    </style>
+    """)
+
+    # ── Logo + company header ─────────────────────────────────────────────────
+    st.html(f"""
+    <div style="text-align:center;padding:4px 0 28px;direction:{dir_s}">
+      <div style="display:inline-flex;align-items:center;justify-content:center;
+          width:56px;height:56px;background:{primary};border-radius:16px;
+          margin-bottom:16px;box-shadow:0 6px 20px rgba(53,79,97,0.30)">
+        <span style="font-size:28px;color:#fff;font-weight:700;line-height:1">+</span>
+      </div>
+      <div style="font-size:24px;font-weight:700;color:#1a2b38;
+          font-family:{font};letter-spacing:-0.02em;line-height:1.2">{company}</div>
+      <div style="font-size:13px;color:#6b757d;margin-top:8px;font-family:{font}">
+        {t('Commission Manager — Sign In')}</div>
+    </div>
+    """)
+
+    # ── Language switcher (right-aligned pill buttons) ────────────────────────
+    _, lc1, lc2 = st.columns([4, 1, 1])
+    with lc1:
+        if st.button("EN", type="primary" if _lang == 'en' else "secondary",
+                     key="_login_lang_en", use_container_width=True):
             st.session_state[_LANG_KEY] = 'en'
             st.rerun()
-    with lang_col2:
-        if st.button("عربي", type="primary" if _lang == 'ar' else "secondary", key="_login_lang_ar"):
+    with lc2:
+        if st.button("عربي", type="primary" if _lang == 'ar' else "secondary",
+                     key="_login_lang_ar", use_container_width=True):
             st.session_state[_LANG_KEY] = 'ar'
             st.rerun()
 
-    _, col, _ = st.columns([1, 2, 1])
-    with col:
-        with st.form("login_form", clear_on_submit=False):
-            username = st.text_input(t("Username"), placeholder=t("Enter username"))
-            password = st.text_input(t("Password"), type="password", placeholder=t("Enter password"))
-            submitted = st.form_submit_button(
-                t("Sign In"), type="primary", use_container_width=True
-            )
+    st.html("<div style='height:12px'></div>")
 
-        if submitted:
-            if not username or not password:
-                st.error(t("Please enter both username and password."))
-                return
-            user = get_user(username.strip().lower())
-            if user and user['is_active'] and verify_password(password, user['password_hash']):
-                token = _create_session(user['id'], user['username'])
-                st.session_state.update({
-                    'authenticated': True,
-                    'username':      user['username'],
-                    'full_name':     user['full_name'] or user['username'],
-                    'role':          user['role'],
-                    'auth_token':    token,
-                })
-                _set_auth_cookie(token)
-                st.rerun()
-            else:
-                st.error(t("Invalid username or password."))
+    # ── Login form ────────────────────────────────────────────────────────────
+    with st.form("login_form", clear_on_submit=False):
+        username  = st.text_input(t("Username"), placeholder=t("Enter username"))
+        password  = st.text_input(t("Password"), type="password",
+                                  placeholder=t("Enter password"))
+        submitted = st.form_submit_button(t("Sign In"), use_container_width=True)
+
+    if submitted:
+        if not username or not password:
+            st.error(t("Please enter both username and password."))
+            return
+        user = get_user(username.strip().lower())
+        if user and user['is_active'] and verify_password(password, user['password_hash']):
+            token = _create_session(user['id'], user['username'])
+            st.session_state.update({
+                'authenticated': True,
+                'username':      user['username'],
+                'full_name':     user['full_name'] or user['username'],
+                'role':          user['role'],
+                'auth_token':    token,
+            })
+            _set_auth_cookie(token)
+            st.rerun()
+        else:
+            st.error(t("Invalid username or password."))
 
 
 # ── Core auth gate ────────────────────────────────────────────────────────────
