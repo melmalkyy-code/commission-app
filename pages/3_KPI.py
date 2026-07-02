@@ -10,11 +10,16 @@ from src.models import (get_setting, get_salespersons, get_kpi_items,
                          get_kpi_adjustment, save_kpi_adjustment, log_action,
                          get_category_achievement)
 from src.calculations import calc_kpi
+from src.ui import inject_css, page_header, sidebar_logo
 
 PRIMARY = get_setting('primary_color', '#354f61')
 ACCENT  = get_setting('accent_color', '#f6ba3b')
-st.set_page_config(page_title="KPI Calculation", layout="wide")
-st.markdown(f"<h1 style='color:{PRIMARY}'>KPI Calculation</h1>", unsafe_allow_html=True)
+COMPANY = get_setting('company_name', 'Surveying Experts')
+
+st.set_page_config(page_title="KPI Calculation — Surveying Experts", layout="wide")
+inject_css(PRIMARY)
+sidebar_logo(COMPANY, PRIMARY)
+page_header("KPI Calculation", "Enter manual KPI scores (0–100) and review results", PRIMARY)
 
 col1, col2 = st.columns([1, 1])
 year    = col1.selectbox("Year",    [2024, 2025, 2026, 2027], index=2)

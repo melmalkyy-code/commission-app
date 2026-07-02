@@ -7,13 +7,14 @@ init_db()
 require_login()
 from src.models import get_setting, get_audit_logs
 
+from src.ui import inject_css, page_header, sidebar_logo
+
 PRIMARY = get_setting('primary_color', '#354f61')
-st.set_page_config(page_title="Audit Log", layout="wide")
-st.markdown(
-    f"<h1 style='color:{PRIMARY};margin-bottom:2px'>Audit Log</h1>"
-    f"<p style='color:#5a7080;margin-top:0'>Complete trail of all data changes and actions</p>",
-    unsafe_allow_html=True,
-)
+COMPANY = get_setting('company_name', 'Surveying Experts')
+st.set_page_config(page_title="Audit Log — Surveying Experts", layout="wide")
+inject_css(PRIMARY)
+sidebar_logo(COMPANY, PRIMARY)
+page_header("Audit Log", "Complete trail of all data changes and user actions", PRIMARY)
 
 col1, col2, col3 = st.columns(3)
 action_filter = col1.selectbox("Filter by Action", [

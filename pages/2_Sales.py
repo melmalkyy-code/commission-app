@@ -9,12 +9,16 @@ from src.models import (get_setting, get_salespersons, get_categories,
                          get_or_create_period, save_sale, get_sales,
                          get_tier_target, log_action)
 from src.calculations import calc_all_commissions, get_totals
+from src.ui import inject_css, page_header, sidebar_logo
 
 PRIMARY = get_setting('primary_color', '#354f61')
 ACCENT  = get_setting('accent_color', '#f6ba3b')
+COMPANY = get_setting('company_name', 'Surveying Experts')
 
-st.set_page_config(page_title="Sales Input", layout="wide")
-st.markdown(f"<h1 style='color:{PRIMARY}'>Sales Input</h1>", unsafe_allow_html=True)
+st.set_page_config(page_title="Sales Input — Surveying Experts", layout="wide")
+inject_css(PRIMARY)
+sidebar_logo(COMPANY, PRIMARY)
+page_header("Sales Input", "Enter actual sales amounts (SAR) for each salesperson", PRIMARY)
 
 col1, col2 = st.columns([1, 1])
 year    = col1.selectbox("Year",    [2024, 2025, 2026, 2027], index=2)

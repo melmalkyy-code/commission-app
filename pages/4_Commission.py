@@ -8,16 +8,16 @@ init_db()
 require_login()
 from src.models import get_setting, get_or_create_period
 from src.calculations import calc_all_commissions, get_totals
+from src.ui import inject_css, page_header, sidebar_logo, sar, pct
 
 PRIMARY = get_setting('primary_color', '#354f61')
 ACCENT  = get_setting('accent_color', '#f6ba3b')
-st.set_page_config(page_title="Final Commission", layout="wide")
+COMPANY = get_setting('company_name', 'Surveying Experts')
 
-st.markdown(
-    f"<h1 style='color:{PRIMARY};margin-bottom:2px'>Final Commission Calculator</h1>"
-    f"<p style='color:#5a7080;margin-top:0'>Formula: Base Commission x KPI Multiplier</p>",
-    unsafe_allow_html=True,
-)
+st.set_page_config(page_title="Commission Report — Surveying Experts", layout="wide")
+inject_css(PRIMARY)
+sidebar_logo(COMPANY, PRIMARY)
+page_header("Commission Report", "Base Commission × KPI Multiplier = Final Commission", PRIMARY)
 
 # ── Period selector ──────────────────────────────────────────────────────────
 col1, col2, _ = st.columns([1, 1, 4])
@@ -35,9 +35,6 @@ def _load(pid):
 
 with st.spinner("Computing commissions..."):
     commissions, totals = _load(period['id'])
-
-def sar(v): return f"SAR {v:,.0f}"
-def pct(v): return f"{v:.1f}%"
 
 # ── Three-level tabs ─────────────────────────────────────────────────────────
 tab_company, tab_branch, tab_person = st.tabs(

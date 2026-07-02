@@ -17,14 +17,14 @@ from src.models import (
     get_periods, lock_period, unlock_period, log_action, get_or_create_period,
 )
 from src.db import execute
+from src.ui import inject_css, page_header, sidebar_logo
 
 PRIMARY = get_setting('primary_color', '#354f61')
-st.set_page_config(page_title="Settings", layout="wide")
-st.markdown(
-    f"<h1 style='color:{PRIMARY};margin-bottom:2px'>Settings & Configuration</h1>"
-    f"<p style='color:#5a7080;margin-top:0'>Manage all system settings, targets, and commission rules</p>",
-    unsafe_allow_html=True,
-)
+COMPANY = get_setting('company_name', 'Surveying Experts')
+st.set_page_config(page_title="Settings — Surveying Experts", layout="wide")
+inject_css(PRIMARY)
+sidebar_logo(COMPANY, PRIMARY)
+page_header("Settings & Configuration", "Manage all system settings, targets, and commission rules", PRIMARY)
 
 
 def _save(fn, *args, ok="Saved.", err=""):
