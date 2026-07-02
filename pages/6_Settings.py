@@ -354,8 +354,23 @@ with tabs[5]:
 
         if cat_obj:
             brackets = get_brackets(cat_obj['id'], active_only=False)
+
+            # ── Icon toolbar ─────────────────────────────────────────────────
+            st.markdown(
+                "<div style='display:flex;align-items:center;gap:16px;padding:8px 0 4px;"
+                "border-bottom:1px solid #e5e8eb;margin-bottom:12px'>"
+                "<span style='font-size:20px'>📊</span>"
+                "<span style='font-size:13px;color:#6b757d'>"
+                "✏️&nbsp;Edit cells inline &nbsp;·&nbsp; "
+                "☑&nbsp;Tick rows to delete &nbsp;·&nbsp; "
+                "＋&nbsp;Add new bracket below"
+                "</span></div>",
+                unsafe_allow_html=True,
+            )
+
             if brackets:
                 br_df = pd.DataFrame([{
+                    "✓":          False,
                     "ID":         b['id'],
                     "From (SAR)": b['from_amount'],
                     "To (SAR)":   b['to_amount'] or 0,
@@ -364,11 +379,27 @@ with tabs[5]:
                     "Active":     bool(b['is_active']),
                     "Sort":       b['sort_order'],
                 } for b in brackets])
+
+                # Key is category-scoped so switching categories resets the editor
                 edited_br = st.data_editor(
                     br_df, use_container_width=True, hide_index=True,
-                    disabled=["ID"], key="br_editor",
+                    disabled=["ID"],
+                    key=f"br_editor_{cat_obj['id']}",
+                    column_config={
+                        "✓":    st.column_config.CheckboxColumn("✓", default=False),
+                        "ID":   st.column_config.NumberColumn("ID", disabled=True),
+                        "From (SAR)": st.column_config.NumberColumn("From (SAR)", min_value=0, step=50000),
+                        "To (SAR)":   st.column_config.NumberColumn("To (SAR)",   min_value=0, step=50000),
+                        "Rate %":     st.column_config.NumberColumn("Rate %", min_value=0.0, max_value=100.0, step=0.5, format="%.2f%%"),
+                        "Sort":       st.column_config.NumberColumn("Sort", min_value=0, step=1),
+                    },
                 )
-                if st.button("Save Brackets", type="primary", key="save_brackets"):
+
+                selected_br_ids = edited_br.loc[edited_br["✓"] == True, "ID"].tolist()
+                sb1, sb2, _ = st.columns([2, 3, 7])
+
+                if sb1.button("💾 Save Brackets", type="primary",
+                              key="save_brackets", use_container_width=True):
                     for _, row in edited_br.iterrows():
                         to_amt = None if row['Unlimited'] else row['To (SAR)']
                         update_bracket(int(row['ID']), row['From (SAR)'], to_amt,
@@ -378,8 +409,23 @@ with tabs[5]:
                     st.success("Brackets saved.")
                     st.rerun()
 
-            with st.expander("Add Bracket"):
-                with st.form("add_bracket_form"):
+                del_br_label = (f"🗑 Delete {len(selected_br_ids)} Selected"
+                                if selected_br_ids else "🗑 Delete Selected")
+                if sb2.button(del_br_label, type="secondary", key="del_brackets",
+                              use_container_width=True, disabled=not selected_br_ids):
+                    for bid in selected_br_ids:
+                        try:
+                            delete_bracket(int(bid))
+                        except Exception as e:
+                            st.error(f"Cannot delete bracket: {e}")
+                    st.cache_data.clear()
+                    st.success(f"Deleted {len(selected_br_ids)} bracket(s).")
+                    st.rerun()
+            else:
+                st.info("No brackets yet for this category. Add one below.")
+
+            with st.expander("＋ Add New Bracket"):
+                with st.form(f"add_bracket_form_{cat_obj['id']}"):
                     c1, c2, c3 = st.columns(3)
                     frm       = c1.number_input("From (SAR)", min_value=0, step=50000, key="new_br_from")
                     to        = c2.number_input("To (SAR)",   min_value=0, step=50000, key="new_br_to")
@@ -388,7 +434,7 @@ with tabs[5]:
                     if st.form_submit_button("Add Bracket", type="primary"):
                         _save(add_bracket, cat_obj['id'], frm,
                               None if unlimited else to, rate, unlimited,
-                              len(brackets), ok="Bracket added.")
+                              len(brackets) if brackets else 0, ok="Bracket added.")
                         st.rerun()
 
 

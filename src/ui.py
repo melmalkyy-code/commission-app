@@ -227,23 +227,26 @@ hr {{
   border-radius: 8px !important;
 }}
 
-/* ── Hide Streamlit footer + hamburger ── */
+/* ── Hide Streamlit footer + menu ── */
 #MainMenu {{ visibility: hidden; }}
 footer {{ visibility: hidden; }}
-/* Use visibility (not display:none) so sidebar toggle stays in DOM */
-[data-testid="stToolbar"] {{ visibility: hidden; }}
+/* DO NOT hide stToolbar — it contains the sidebar toggle in some Streamlit builds */
 
-/* ── Sidebar collapse/expand toggle — always usable ── */
+/* ── Sidebar collapse/expand toggle — always visible and clickable ── */
 [data-testid="collapsedControl"] {{
   display: flex !important;
   visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: all !important;
   background: #1a2b38 !important;
   border-radius: 0 8px 8px 0 !important;
-  padding: 6px 3px !important;
+  box-shadow: 2px 2px 8px rgba(0,0,0,0.18) !important;
+  z-index: 999999 !important;
 }}
-[data-testid="collapsedControl"] svg {{
-  color: rgba(255,255,255,0.85) !important;
-  fill: rgba(255,255,255,0.85) !important;
+[data-testid="collapsedControl"] svg,
+[data-testid="collapsedControl"] button svg {{
+  fill: rgba(255,255,255,0.9) !important;
+  color: rgba(255,255,255,0.9) !important;
 }}
 """
 
