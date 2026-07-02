@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from src.startup import init_db
 from src.auth import require_login, logout_button
-from src.models import get_setting, get_or_create_period, get_sales
+from src.models import get_setting, get_or_create_period, get_period, get_sales
 
 st.set_page_config(
     page_title="Commission Dashboard — Surveying Experts",
@@ -72,12 +72,21 @@ def _sales(pid):
 # ── Previous quarter for QoQ ─────────────────────────────────────────────────
 _pq_y = year - 1 if quarter == 1 else year
 _pq_q = 4        if quarter == 1 else quarter - 1
-prev_period = get_or_create_period(_pq_y, _pq_q)
 prev_label  = f"Q{_pq_q} {_pq_y}"
+prev_period = get_period(_pq_y, _pq_q)   # SELECT only — never inserts
+
+_EMPTY_TOTALS = {
+    'total_sales': 0, 'total_target': 0, 'achievement': 0,
+    'total_base': 0, 'total_final': 0, 'achieved_count': 0,
+    'total_count': 0, 'top5': [],
+}
 
 with st.spinner(""):
-    commissions,  totals      = _load(period['id'])
-    prev_comms,   prev_totals = _load(prev_period['id'])
+    commissions, totals = _load(period['id'])
+    if prev_period:
+        prev_comms, prev_totals = _load(prev_period['id'])
+    else:
+        prev_comms,  prev_totals = [], _EMPTY_TOTALS
 
 prev_sp_map = {c['salesperson_name']: c for c in prev_comms}
 

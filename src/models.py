@@ -247,13 +247,27 @@ def get_periods() -> list[dict]:
     return fetchall("SELECT id, year, quarter, is_locked, is_current, locked_at FROM periods ORDER BY year DESC, quarter DESC")
 
 
+def get_period(year: int, quarter: int) -> dict | None:
+    """Return the period row if it exists, otherwise None (never inserts)."""
+    return fetchone(
+        "SELECT id, year, quarter, is_locked, is_current FROM periods "
+        "WHERE year=%s AND quarter=%s",
+        (year, quarter),
+    )
+
+
 def get_or_create_period(year: int, quarter: int) -> dict:
-    row = fetchone("SELECT id, year, quarter, is_locked, is_current FROM periods WHERE year=%s AND quarter=%s", (year, quarter))
+    row = get_period(year, quarter)
     if row:
         return row
-    cur = execute("INSERT INTO periods (year, quarter) VALUES (%s, %s) RETURNING id, year, quarter, is_locked, is_current", (year, quarter))
-    r = cur.fetchone()
-    return {'id': r[0], 'year': r[1], 'quarter': r[2], 'is_locked': r[3], 'is_current': r[4]}
+    # Portable INSERT — works on SQLite 3.24+ and PostgreSQL 9.5+
+    # Avoids RETURNING which is PostgreSQL-only in older SQLite builds
+    execute(
+        "INSERT INTO periods (year, quarter) VALUES (%s, %s) "
+        "ON CONFLICT (year, quarter) DO NOTHING",
+        (year, quarter),
+    )
+    return get_period(year, quarter)
 
 
 def lock_period(pid: int):

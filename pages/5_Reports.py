@@ -5,7 +5,7 @@ from src.startup import init_db
 from src.auth import require_login, logout_button
 init_db()
 require_login()
-from src.models import get_setting, get_or_create_period, get_branches, get_salespersons
+from src.models import get_setting, get_or_create_period, get_period, get_branches, get_salespersons
 from src.calculations import calc_all_commissions, get_totals
 
 from src.ui import inject_css, page_header, sidebar_logo
@@ -30,17 +30,24 @@ period_label = f"Q{quarter} {year}"
 # ── Previous quarter for QoQ ─────────────────────────────────────────────────
 _pq_y = year - 1 if quarter == 1 else year
 _pq_q = 4        if quarter == 1 else quarter - 1
-_prev_period = get_or_create_period(_pq_y, _pq_q)
+_prev_period = get_period(_pq_y, _pq_q)   # SELECT only — never inserts
 _prev_label  = f"Q{_pq_q} {_pq_y}"
 
 st.divider()
 
+_EMPTY_T = {'total_sales': 0, 'total_target': 0, 'achievement': 0,
+            'total_base': 0, 'total_final': 0, 'achieved_count': 0, 'total_count': 0}
+
 with st.spinner("Loading data..."):
-    commissions       = calc_all_commissions(period['id'])
-    totals            = get_totals(commissions)
-    _prev_commissions = calc_all_commissions(_prev_period['id'])
-    _prev_totals      = get_totals(_prev_commissions)
-    _prev_sp_map      = {c['salesperson_name']: c for c in _prev_commissions}
+    commissions = calc_all_commissions(period['id'])
+    totals      = get_totals(commissions)
+    if _prev_period:
+        _prev_commissions = calc_all_commissions(_prev_period['id'])
+        _prev_totals      = get_totals(_prev_commissions)
+    else:
+        _prev_commissions = []
+        _prev_totals      = _EMPTY_T
+    _prev_sp_map = {c['salesperson_name']: c for c in _prev_commissions}
 
 
 def _qoq_g(curr: float, prev: float) -> str:
