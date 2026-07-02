@@ -69,22 +69,48 @@ def _sales(pid):
     return get_sales(pid)
 
 
+# ── Previous quarter for QoQ ─────────────────────────────────────────────────
+_pq_y = year - 1 if quarter == 1 else year
+_pq_q = 4        if quarter == 1 else quarter - 1
+prev_period = get_or_create_period(_pq_y, _pq_q)
+prev_label  = f"Q{_pq_q} {_pq_y}"
+
 with st.spinner(""):
-    commissions, totals = _load(period['id'])
+    commissions,  totals      = _load(period['id'])
+    prev_comms,   prev_totals = _load(prev_period['id'])
+
+prev_sp_map = {c['salesperson_name']: c for c in prev_comms}
+
+
+def _qd(curr: float, prev: float):
+    """QoQ delta string for st.metric — None if no prev data."""
+    if not prev:
+        return None
+    return f"{(curr - prev) / prev * 100:+.1f}% vs {prev_label}"
+
+
+def _qg(curr: float, prev: float) -> str:
+    """QoQ growth label for tables."""
+    if prev == 0:
+        return "—"
+    d = (curr - prev) / prev * 100
+    return f"{'▲' if d >= 0 else '▼'} {abs(d):.1f}%"
+
 
 # ── KPI metric strip ──────────────────────────────────────────────────────────
 m1, m2, m3, m4, m5 = st.columns(5)
-m1.metric("Total Sales",       sar(totals['total_sales']),
-          f"vs {sar(totals['total_target'])}")
-m2.metric("Achievement",       pct(totals['achievement']))
-m3.metric("Base Commission",   sar(totals['total_base']))
-m4.metric("Final Commission",  sar(totals['total_final']), "After KPI")
-m5.metric("On Target",         f"{totals['achieved_count']} / {totals['total_count']}")
+m1.metric("Total Sales",      sar(totals['total_sales']),  _qd(totals['total_sales'],  prev_totals['total_sales']))
+m2.metric("Achievement",      pct(totals['achievement']),  _qd(totals['achievement'],  prev_totals['achievement']))
+m3.metric("Base Commission",  sar(totals['total_base']),   _qd(totals['total_base'],   prev_totals['total_base']))
+m4.metric("Final Commission", sar(totals['total_final']),  _qd(totals['total_final'],  prev_totals['total_final']))
+m5.metric("On Target",        f"{totals['achieved_count']} / {totals['total_count']}")
 
 st.markdown("<div style='margin:1.5rem 0 0'></div>", unsafe_allow_html=True)
 
 # ── Three-level tabs ──────────────────────────────────────────────────────────
-tab_co, tab_br, tab_sp = st.tabs(["Company", "By Branch", "By Salesperson"])
+tab_co, tab_br, tab_sp, tab_qoq = st.tabs(
+    ["Company", "By Branch", "By Salesperson", f"QoQ vs {prev_label}"]
+)
 
 
 # ════════════════════ COMPANY ═════════════════════════════════════════════════
@@ -292,3 +318,124 @@ with tab_sp:
                 "Commission":  sar(cr['commission']),
             } for cr in sel_c['categories']]
             st.dataframe(pd.DataFrame(cat_rows), use_container_width=True, hide_index=True)
+
+
+# ════════════════════ QOQ COMPARISON ═════════════════════════════════════════
+with tab_qoq:
+    st.markdown(
+        f"<div style='font-size:13px;color:#6b757d;margin-bottom:1rem'>"
+        f"Comparing <b>{period_label}</b> against <b>{prev_label}</b>. "
+        f"Growth is calculated as (Current − Previous) / Previous × 100.</div>",
+        unsafe_allow_html=True,
+    )
+
+    if not prev_comms:
+        st.info(f"No data recorded for {prev_label} — enter sales for that quarter first.")
+    else:
+        # ── Company summary ───────────────────────────────────────────────────
+        st.markdown("#### Company Summary")
+        comp_rows = [
+            {
+                "Metric":        "Total Sales",
+                prev_label:      sar(prev_totals['total_sales']),
+                period_label:    sar(totals['total_sales']),
+                "Growth QoQ":    _qg(totals['total_sales'],   prev_totals['total_sales']),
+            },
+            {
+                "Metric":        "Total Target",
+                prev_label:      sar(prev_totals['total_target']),
+                period_label:    sar(totals['total_target']),
+                "Growth QoQ":    _qg(totals['total_target'],  prev_totals['total_target']),
+            },
+            {
+                "Metric":        "Achievement %",
+                prev_label:      pct(prev_totals['achievement']),
+                period_label:    pct(totals['achievement']),
+                "Growth QoQ":    f"{totals['achievement'] - prev_totals['achievement']:+.1f} pp",
+            },
+            {
+                "Metric":        "Base Commission",
+                prev_label:      sar(prev_totals['total_base']),
+                period_label:    sar(totals['total_base']),
+                "Growth QoQ":    _qg(totals['total_base'],    prev_totals['total_base']),
+            },
+            {
+                "Metric":        "Final Commission",
+                prev_label:      sar(prev_totals['total_final']),
+                period_label:    sar(totals['total_final']),
+                "Growth QoQ":    _qg(totals['total_final'],   prev_totals['total_final']),
+            },
+        ]
+        st.dataframe(pd.DataFrame(comp_rows), use_container_width=True, hide_index=True)
+
+        # ── Sales comparison chart ────────────────────────────────────────────
+        st.markdown("#### Sales Trend by Salesperson")
+        names_q  = [c['salesperson_name'].split()[0] for c in commissions]
+        prev_s_q = [prev_sp_map.get(c['salesperson_name'], {}).get('total_actual', 0) / 1_000
+                    for c in commissions]
+        curr_s_q = [c['total_actual'] / 1_000 for c in commissions]
+        fig_qoq = go.Figure()
+        fig_qoq.add_bar(name=prev_label,   x=names_q, y=prev_s_q,
+                        marker_color='#9ab2c0', opacity=0.8)
+        fig_qoq.add_bar(name=period_label, x=names_q, y=curr_s_q,
+                        marker_color=PRIMARY,   opacity=0.9)
+        fig_qoq.update_layout(
+            barmode='group', height=280,
+            margin=dict(l=0, r=0, t=8, b=8),
+            legend=dict(orientation='h', y=1.1, font=dict(size=12)),
+            yaxis=dict(title="SAR (thousands)", gridcolor='#f0f3f5', zeroline=False),
+            plot_bgcolor='white', paper_bgcolor='white',
+            font=dict(family='IBM Plex Sans, system-ui, sans-serif', size=12),
+        )
+        st.plotly_chart(fig_qoq, use_container_width=True)
+
+        # ── By salesperson ────────────────────────────────────────────────────
+        st.markdown("#### By Salesperson")
+        sp_qoq = []
+        for c in sorted(commissions, key=lambda x: x['total_actual'], reverse=True):
+            p  = prev_sp_map.get(c['salesperson_name'], {})
+            ps = p.get('total_actual', 0)
+            pc = p.get('final_commission', 0)
+            sp_qoq.append({
+                "Salesperson":             c['salesperson_name'],
+                "Branch":                  c['branch_name'],
+                f"Sales {prev_label}":     sar(ps),
+                f"Sales {period_label}":   sar(c['total_actual']),
+                "Sales Growth":            _qg(c['total_actual'], ps),
+                f"Comm. {prev_label}":     sar(pc),
+                f"Comm. {period_label}":   sar(c['final_commission']),
+                "Comm. Growth":            _qg(c['final_commission'], pc),
+            })
+        st.dataframe(pd.DataFrame(sp_qoq), use_container_width=True, hide_index=True)
+
+        # ── By branch ─────────────────────────────────────────────────────────
+        st.markdown("#### By Branch")
+        curr_br_agg: dict = {}
+        prev_br_agg: dict = {}
+        for c in commissions:
+            b = c['branch_name'] or 'Unknown'
+            curr_br_agg.setdefault(b, {'sales': 0, 'final': 0})
+            curr_br_agg[b]['sales'] += c['total_actual']
+            curr_br_agg[b]['final'] += c['final_commission']
+        for c in prev_comms:
+            b = c['branch_name'] or 'Unknown'
+            prev_br_agg.setdefault(b, {'sales': 0, 'final': 0})
+            prev_br_agg[b]['sales'] += c['total_actual']
+            prev_br_agg[b]['final'] += c['final_commission']
+
+        br_qoq = []
+        for b in sorted(set(list(curr_br_agg) + list(prev_br_agg))):
+            cs = curr_br_agg.get(b, {}).get('sales', 0)
+            ps = prev_br_agg.get(b, {}).get('sales', 0)
+            cf = curr_br_agg.get(b, {}).get('final', 0)
+            pf = prev_br_agg.get(b, {}).get('final', 0)
+            br_qoq.append({
+                "Branch":                  b,
+                f"Sales {prev_label}":     sar(ps),
+                f"Sales {period_label}":   sar(cs),
+                "Sales Growth":            _qg(cs, ps),
+                f"Comm. {prev_label}":     sar(pf),
+                f"Comm. {period_label}":   sar(cf),
+                "Comm. Growth":            _qg(cf, pf),
+            })
+        st.dataframe(pd.DataFrame(br_qoq), use_container_width=True, hide_index=True)

@@ -230,7 +230,21 @@ hr {{
 /* ── Hide Streamlit footer + hamburger ── */
 #MainMenu {{ visibility: hidden; }}
 footer {{ visibility: hidden; }}
-[data-testid="stToolbar"] {{ display: none !important; }}
+/* Use visibility (not display:none) so sidebar toggle stays in DOM */
+[data-testid="stToolbar"] {{ visibility: hidden; }}
+
+/* ── Sidebar collapse/expand toggle — always usable ── */
+[data-testid="collapsedControl"] {{
+  display: flex !important;
+  visibility: visible !important;
+  background: #1a2b38 !important;
+  border-radius: 0 8px 8px 0 !important;
+  padding: 6px 3px !important;
+}}
+[data-testid="collapsedControl"] svg {{
+  color: rgba(255,255,255,0.85) !important;
+  fill: rgba(255,255,255,0.85) !important;
+}}
 """
 
 

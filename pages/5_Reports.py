@@ -26,11 +26,28 @@ quarter = col2.selectbox("Quarter", [1, 2, 3, 4],             index=1, key="rep_
                           format_func=lambda q: f"Q{q}")
 period  = get_or_create_period(year, quarter)
 period_label = f"Q{quarter} {year}"
+
+# ── Previous quarter for QoQ ─────────────────────────────────────────────────
+_pq_y = year - 1 if quarter == 1 else year
+_pq_q = 4        if quarter == 1 else quarter - 1
+_prev_period = get_or_create_period(_pq_y, _pq_q)
+_prev_label  = f"Q{_pq_q} {_pq_y}"
+
 st.divider()
 
 with st.spinner("Loading data..."):
-    commissions = calc_all_commissions(period['id'])
-    totals      = get_totals(commissions)
+    commissions       = calc_all_commissions(period['id'])
+    totals            = get_totals(commissions)
+    _prev_commissions = calc_all_commissions(_prev_period['id'])
+    _prev_totals      = get_totals(_prev_commissions)
+    _prev_sp_map      = {c['salesperson_name']: c for c in _prev_commissions}
+
+
+def _qoq_g(curr: float, prev: float) -> str:
+    if prev == 0:
+        return "—"
+    d = (curr - prev) / prev * 100
+    return f"{'▲' if d >= 0 else '▼'} {abs(d):.1f}%"
 
 
 # ─── Excel helpers ────────────────────────────────────────────────────────────
@@ -139,6 +156,45 @@ def make_excel_company() -> bytes:
                         round(ach, 1), round(cr['rate'], 2), round(cr['commission'], 0)])
     _auto_width(ws4)
 
+    # Sheet 5: QoQ Analysis
+    if _prev_commissions:
+        ws5 = wb.create_sheet(f"QoQ vs {_prev_label}")
+        ws5.append([
+            "Salesperson", "Branch",
+            f"Sales {_prev_label}", f"Sales {period_label}", "Sales Growth",
+            f"Comm. {_prev_label}", f"Comm. {period_label}", "Comm. Growth",
+            f"Ach. {_prev_label}", f"Ach. {period_label}", "Ach. Δ pp",
+        ])
+        _fill_row(ws5, 1, PRIMARY)
+        for c in commissions:
+            p  = _prev_sp_map.get(c['salesperson_name'], {})
+            ps = p.get('total_actual', 0)
+            pc = p.get('final_commission', 0)
+            pa = p.get('achievement', 0)
+            ws5.append([
+                c['salesperson_name'], c['branch_name'],
+                round(ps, 0), round(c['total_actual'], 0),
+                _qoq_g(c['total_actual'], ps),
+                round(pc, 0), round(c['final_commission'], 0),
+                _qoq_g(c['final_commission'], pc),
+                round(pa, 1), round(c['achievement'], 1),
+                round(c['achievement'] - pa, 1),
+            ])
+        # Company totals row
+        ws5.append([])
+        ws5.append([
+            "COMPANY TOTAL", "",
+            round(_prev_totals['total_sales'], 0), round(totals['total_sales'], 0),
+            _qoq_g(totals['total_sales'], _prev_totals['total_sales']),
+            round(_prev_totals['total_final'], 0), round(totals['total_final'], 0),
+            _qoq_g(totals['total_final'], _prev_totals['total_final']),
+            round(_prev_totals['achievement'], 1), round(totals['achievement'], 1),
+            round(totals['achievement'] - _prev_totals['achievement'], 1),
+        ])
+        _fill_row(ws5, ws5.max_row, ACCENT,
+                  font_hex=ph, bold=True)
+        _auto_width(ws5)
+
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
@@ -155,21 +211,34 @@ def make_excel_branch(branch_name: str, persons: list) -> bytes:
     _insert_logo_xl(ws)
     ws.append([])
     ws.append(["Salesperson", "Tier", "Sales", "Target", "Ach %",
-               "Base Comm.", "KPI Score", "KPI x", "Final Comm."])
+               "Base Comm.", "KPI Score", "KPI x", "Final Comm.",
+               f"Sales {_prev_label}", "Sales Growth",
+               f"Comm. {_prev_label}", "Comm. Growth"])
     _fill_row(ws, 3, PRIMARY)
     for c in persons:
-        ws.append([c['salesperson_name'], c['tier_name'],
-                   round(c['total_actual'], 0), round(c['total_target'], 0),
-                   round(c['achievement'], 1), round(c['base_commission'], 0),
-                   round(c['kpi_score'], 2), c['kpi_multiplier'],
-                   round(c['final_commission'], 0)])
+        p  = _prev_sp_map.get(c['salesperson_name'], {})
+        ps = p.get('total_actual', 0)
+        pc = p.get('final_commission', 0)
+        ws.append([
+            c['salesperson_name'], c['tier_name'],
+            round(c['total_actual'], 0), round(c['total_target'], 0),
+            round(c['achievement'], 1), round(c['base_commission'], 0),
+            round(c['kpi_score'], 2), c['kpi_multiplier'],
+            round(c['final_commission'], 0),
+            round(ps, 0), _qoq_g(c['total_actual'], ps),
+            round(pc, 0), _qoq_g(c['final_commission'], pc),
+        ])
     # Totals row
     ws.append([])
     b_sales  = sum(c['total_actual'] for c in persons)
     b_target = sum(c['total_target'] for c in persons)
     b_final  = sum(c['final_commission'] for c in persons)
+    pb_sales = sum(_prev_sp_map.get(c['salesperson_name'], {}).get('total_actual', 0) for c in persons)
+    pb_final = sum(_prev_sp_map.get(c['salesperson_name'], {}).get('final_commission', 0) for c in persons)
     ws.append(["TOTAL", "", round(b_sales, 0), round(b_target, 0), "", "", "", "",
-               round(b_final, 0)])
+               round(b_final, 0),
+               round(pb_sales, 0), _qoq_g(b_sales, pb_sales),
+               round(pb_final, 0), _qoq_g(b_final, pb_final)])
     _fill_row(ws, ws.max_row, ACCENT, font_hex=PRIMARY.lstrip('#'), bold=True)
     _auto_width(ws)
     buf = io.BytesIO()
@@ -202,6 +271,29 @@ def make_excel_salesperson(c: dict) -> bytes:
                        ("FINAL COMMISSION", round(c['final_commission'], 0))]:
         ws.append([label, val])
     _fill_row(ws, ws.max_row, ACCENT, font_hex=PRIMARY.lstrip('#'), bold=True)
+
+    # QoQ comparison sheet
+    p  = _prev_sp_map.get(c['salesperson_name'], {})
+    if p:
+        ws2 = wb.create_sheet(f"QoQ vs {_prev_label}")
+        ws2.append([f"QoQ Comparison: {c['salesperson_name']}",
+                    _prev_label, period_label, "Growth"])
+        _fill_row(ws2, 1, PRIMARY)
+        ps = p.get('total_actual', 0)
+        pc = p.get('final_commission', 0)
+        pa = p.get('achievement', 0)
+        for lbl, pv, cv in [
+            ("Total Sales",      ps,                   c['total_actual']),
+            ("Achievement %",    pa,                   c['achievement']),
+            ("Base Commission",  p.get('base_commission', 0), c['base_commission']),
+            ("Final Commission", pc,                   c['final_commission']),
+        ]:
+            ws2.append([lbl, round(pv, 1), round(cv, 1), _qoq_g(cv, pv)])
+        ws2.append([])
+        ws2.append(["FINAL COMMISSION GROWTH", "", "", _qoq_g(c['final_commission'], pc)])
+        _fill_row(ws2, ws2.max_row, ACCENT, font_hex=PRIMARY.lstrip('#'), bold=True)
+        _auto_width(ws2)
+
     _auto_width(ws)
     buf = io.BytesIO()
     wb.save(buf)
@@ -309,6 +401,41 @@ def make_pdf_salesperson(c: dict) -> bytes:
         ('PADDING',     (0, 0), (-1, -1), 6),
     ]))
     story.append(stbl)
+
+    # ── QoQ Comparison section ────────────────────────────────────────────────
+    p_c = _prev_sp_map.get(c['salesperson_name'], {})
+    if p_c:
+        story.append(Spacer(1, 14))
+        story.append(Paragraph(f"Quarter-over-Quarter vs {_prev_label}", sec_st))
+        ps_v = p_c.get('total_actual', 0)
+        pc_v = p_c.get('final_commission', 0)
+        pa_v = p_c.get('achievement', 0)
+        qoq_data = [
+            ["Metric", _prev_label, period_label, "Growth QoQ"],
+            ["Total Sales",
+             f"SAR {ps_v:,.0f}", f"SAR {c['total_actual']:,.0f}",
+             _qoq_g(c['total_actual'], ps_v)],
+            ["Achievement %",
+             f"{pa_v:.1f}%", f"{c['achievement']:.1f}%",
+             f"{c['achievement'] - pa_v:+.1f} pp"],
+            ["Final Commission",
+             f"SAR {pc_v:,.0f}", f"SAR {c['final_commission']:,.0f}",
+             _qoq_g(c['final_commission'], pc_v)],
+        ]
+        qtbl = Table(qoq_data, hAlign='LEFT', repeatRows=1)
+        qtbl.setStyle(TableStyle([
+            ('BACKGROUND',   (0, 0), (-1, 0),  pc),
+            ('TEXTCOLOR',    (0, 0), (-1, 0),  HexColor('#ffffff')),
+            ('FONTNAME',     (0, 0), (-1, 0),  'Helvetica-Bold'),
+            ('FONTSIZE',     (0, 0), (-1, -1), 8),
+            ('GRID',         (0, 0), (-1, -1), 0.3, HexColor('#dde5ea')),
+            ('PADDING',      (0, 0), (-1, -1), 5),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1),
+             [HexColor('#ffffff'), HexColor('#f7f9fb')]),
+            ('FONTNAME',     (-1, 1), (-1, -1), 'Helvetica-Bold'),
+        ]))
+        story.append(qtbl)
+
     doc.build(story)
     return buf.getvalue()
 
