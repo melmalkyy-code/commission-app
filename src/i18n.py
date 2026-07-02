@@ -344,6 +344,26 @@ _AR: dict[str, str] = {
     "Enter username": "أدخل اسم المستخدم",
     "Enter password": "أدخل كلمة المرور",
 
+    # ── Excel / Report Headers ───────────────────────────────────────────────
+    "Value":                     "القيمة",
+    "TOTAL":                     "الإجمالي",
+    "COMPANY TOTAL":             "إجمالي الشركة",
+    "By Category":               "حسب الفئة",
+    "Category Breakdown":        "تفصيل الفئات",
+    "Commission Summary":        "ملخص العمولة",
+    "QoQ vs":                    "مقارنة بـ",
+    "QoQ Comparison":            "مقارنة ربع السنوية",
+    "FINAL COMMISSION GROWTH":   "نمو العمولة النهائية",
+    "Total Sales (SAR)":         "إجمالي المبيعات (ريال)",
+    "Total Target (SAR)":        "المستهدف (ريال)",
+    "Base Commission (SAR)":     "العمولة الأساسية (ريال)",
+    "Final Commission (SAR)":    "العمولة النهائية (ريال)",
+    "Total Salespersons":        "إجمالي مهندسي المبيعات",
+    "Achieved Target":           "حقق المستهدف",
+    "Rate %":                    "النسبة %",
+    "KPI x":                     "مضاعف الأداء",
+    "Ach. Δ pp":                 "فرق نقاط الإنجاز",
+
     # ── Misc ─────────────────────────────────────────────────────────────────
     "That name already exists - choose a different one.":
         "هذا الاسم موجود مسبقاً - اختر اسماً مختلفاً.",

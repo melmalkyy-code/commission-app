@@ -9,7 +9,7 @@ from src.models import get_setting, get_or_create_period, get_period, get_branch
 from src.calculations import calc_all_commissions, get_totals
 
 from src.ui import inject_css, page_header, sidebar_logo
-from src.i18n import t, q_label
+from src.i18n import t, q_label, is_rtl
 
 PRIMARY = get_setting('primary_color', '#354f61')
 ACCENT  = get_setting('accent_color', '#f6ba3b')
@@ -95,31 +95,35 @@ def make_excel_company() -> bytes:
     ph = PRIMARY.lstrip('#')
     ah = ACCENT.lstrip('#')
 
+    _rtl = is_rtl()
+
     # Sheet 1: Summary
     ws = wb.active
-    ws.title = "Company Summary"
-    ws.append([COMPANY, "", f"Commission Report - {period_label}"])
+    ws.title = t("Company Summary")
+    if _rtl: ws.sheet_view.rightToLeft = True
+    ws.append([COMPANY, "", f"{t('Commission Report')} - {period_label}"])
     _fill_row(ws, 1, PRIMARY)
     _insert_logo_xl(ws)
     ws.append([])
-    ws.append(["Metric", "Value"])
+    ws.append([t("Metric"), t("Value")])
     _fill_row(ws, 3, PRIMARY)
     for row in [
-        ("Total Sales (SAR)",        round(totals['total_sales'], 0)),
-        ("Total Target (SAR)",       round(totals['total_target'], 0)),
-        ("Achievement %",            round(totals['achievement'], 1)),
-        ("Base Commission (SAR)",    round(totals['total_base'], 0)),
-        ("Final Commission (SAR)",   round(totals['total_final'], 0)),
-        ("Total Salespersons",       totals['total_count']),
-        ("Achieved Target",          totals['achieved_count']),
+        (t("Total Sales (SAR)"),      round(totals['total_sales'], 0)),
+        (t("Total Target (SAR)"),     round(totals['total_target'], 0)),
+        (t("Achievement %"),          round(totals['achievement'], 1)),
+        (t("Base Commission (SAR)"),  round(totals['total_base'], 0)),
+        (t("Final Commission (SAR)"), round(totals['total_final'], 0)),
+        (t("Total Salespersons"),     totals['total_count']),
+        (t("Achieved Target"),        totals['achieved_count']),
     ]:
         ws.append(list(row))
     _auto_width(ws)
 
     # Sheet 2: All Salespersons
-    ws2 = wb.create_sheet("All Salespersons")
-    h2 = ["Salesperson", "Branch", "Tier", "Total Sales", "Target",
-          "Achievement %", "Base Comm.", "KPI Score", "KPI Multiplier", "Final Comm."]
+    ws2 = wb.create_sheet(t("All Salespersons"))
+    if _rtl: ws2.sheet_view.rightToLeft = True
+    h2 = [t("Salesperson"), t("Branch"), t("Tier"), t("Total Sales"), t("Target"),
+          t("Achievement %"), t("Base Comm."), t("KPI Score"), t("KPI Multiplier"), t("Final Comm.")]
     ws2.append(h2)
     _fill_row(ws2, 1, PRIMARY)
     for c in commissions:
@@ -131,9 +135,10 @@ def make_excel_company() -> bytes:
     _auto_width(ws2)
 
     # Sheet 3: By Branch
-    ws3 = wb.create_sheet("By Branch")
-    ws3.append(["Branch", "Salespersons", "Total Sales", "Target",
-                "Achievement %", "Base Comm.", "Final Comm."])
+    ws3 = wb.create_sheet(t("By Branch"))
+    if _rtl: ws3.sheet_view.rightToLeft = True
+    ws3.append([t("Branch"), t("Salespersons"), t("Total Sales"), t("Target"),
+                t("Achievement %"), t("Base Comm."), t("Final Comm.")])
     _fill_row(ws3, 1, PRIMARY)
     branch_map = {}
     for c in commissions:
@@ -152,9 +157,10 @@ def make_excel_company() -> bytes:
     _auto_width(ws3)
 
     # Sheet 4: Category Breakdown
-    ws4 = wb.create_sheet("By Category")
-    ws4.append(["Branch", "Salesperson", "Category", "Actual Sales",
-                "Target", "Achievement %", "Rate %", "Commission"])
+    ws4 = wb.create_sheet(t("By Category"))
+    if _rtl: ws4.sheet_view.rightToLeft = True
+    ws4.append([t("Branch"), t("Salesperson"), t("Category"), t("Actual Sales"),
+                t("Target"), t("Achievement %"), t("Rate %"), t("Commission")])
     _fill_row(ws4, 1, PRIMARY)
     for c in commissions:
         for cr in c['categories']:
@@ -166,12 +172,13 @@ def make_excel_company() -> bytes:
 
     # Sheet 5: QoQ Analysis
     if _prev_commissions:
-        ws5 = wb.create_sheet(f"QoQ vs {_prev_label}")
+        ws5 = wb.create_sheet(f"{t('QoQ vs')} {_prev_label}")
+        if _rtl: ws5.sheet_view.rightToLeft = True
         ws5.append([
-            "Salesperson", "Branch",
-            f"Sales {_prev_label}", f"Sales {period_label}", "Sales Growth",
-            f"Comm. {_prev_label}", f"Comm. {period_label}", "Comm. Growth",
-            f"Ach. {_prev_label}", f"Ach. {period_label}", "Ach. Δ pp",
+            t("Salesperson"), t("Branch"),
+            f"{t('Sales')} {_prev_label}", f"{t('Sales')} {period_label}", t("Sales Growth"),
+            f"{t('Final Comm.')} {_prev_label}", f"{t('Final Comm.')} {period_label}", t("Comm. Growth"),
+            f"{t('Ach.')} {_prev_label}", f"{t('Ach.')} {period_label}", t("Ach. Δ pp"),
         ])
         _fill_row(ws5, 1, PRIMARY)
         for c in commissions:
@@ -191,7 +198,7 @@ def make_excel_company() -> bytes:
         # Company totals row
         ws5.append([])
         ws5.append([
-            "COMPANY TOTAL", "",
+            t("COMPANY TOTAL"), "",
             round(_prev_totals['total_sales'], 0), round(totals['total_sales'], 0),
             _qoq_g(totals['total_sales'], _prev_totals['total_sales']),
             round(_prev_totals['total_final'], 0), round(totals['total_final'], 0),
@@ -213,15 +220,16 @@ def make_excel_branch(branch_name: str, persons: list) -> bytes:
     from openpyxl import Workbook
     wb = Workbook()
     ws = wb.active
-    ws.title = "Branch Report"
+    ws.title = t("Branch Report")
+    if is_rtl(): ws.sheet_view.rightToLeft = True
     ws.append([COMPANY, branch_name, period_label])
     _fill_row(ws, 1, PRIMARY)
     _insert_logo_xl(ws)
     ws.append([])
-    ws.append(["Salesperson", "Tier", "Sales", "Target", "Ach %",
-               "Base Comm.", "KPI Score", "KPI x", "Final Comm.",
-               f"Sales {_prev_label}", "Sales Growth",
-               f"Comm. {_prev_label}", "Comm. Growth"])
+    ws.append([t("Salesperson"), t("Tier"), t("Sales"), t("Target"), t("Achievement %"),
+               t("Base Comm."), t("KPI Score"), t("KPI x"), t("Final Comm."),
+               f"{t('Sales')} {_prev_label}", t("Sales Growth"),
+               f"{t('Final Comm.')} {_prev_label}", t("Comm. Growth")])
     _fill_row(ws, 3, PRIMARY)
     for c in persons:
         p  = _prev_sp_map.get(c['salesperson_name'], {})
@@ -243,7 +251,7 @@ def make_excel_branch(branch_name: str, persons: list) -> bytes:
     b_final  = sum(c['final_commission'] for c in persons)
     pb_sales = sum(_prev_sp_map.get(c['salesperson_name'], {}).get('total_actual', 0) for c in persons)
     pb_final = sum(_prev_sp_map.get(c['salesperson_name'], {}).get('final_commission', 0) for c in persons)
-    ws.append(["TOTAL", "", round(b_sales, 0), round(b_target, 0), "", "", "", "",
+    ws.append([t("TOTAL"), "", round(b_sales, 0), round(b_target, 0), "", "", "", "",
                round(b_final, 0),
                round(pb_sales, 0), _qoq_g(b_sales, pb_sales),
                round(pb_final, 0), _qoq_g(b_final, pb_final)])
@@ -259,13 +267,14 @@ def make_excel_salesperson(c: dict) -> bytes:
     from openpyxl import Workbook
     wb = Workbook()
     ws = wb.active
-    ws.title = "Commission Report"
+    ws.title = t("Commission Report")
+    if is_rtl(): ws.sheet_view.rightToLeft = True
     ws.append([COMPANY, period_label, c['salesperson_name'], c['branch_name'], c['tier_name']])
     _fill_row(ws, 1, PRIMARY)
     _insert_logo_xl(ws)
     ws.append([])
-    ws.append(["Category", "Actual Sales", "Target", "Achievement %",
-               "Bracket", "Rate %", "Commission"])
+    ws.append([t("Category"), t("Actual Sales"), t("Target"), t("Achievement %"),
+               t("Bracket"), t("Rate %"), t("Commission")])
     _fill_row(ws, 3, PRIMARY)
     for cr in c['categories']:
         ach = (cr['actual_sales'] / cr['target'] * 100) if cr['target'] else 0
@@ -273,32 +282,33 @@ def make_excel_salesperson(c: dict) -> bytes:
                    round(cr['target'], 0), round(ach, 1),
                    cr['bracket'], round(cr['rate'], 2), round(cr['commission'], 0)])
     ws.append([])
-    for label, val in [("Base Commission", round(c['base_commission'], 0)),
-                       ("KPI Score",        round(c['kpi_score'], 2)),
-                       ("KPI Multiplier",   c['kpi_multiplier']),
-                       ("FINAL COMMISSION", round(c['final_commission'], 0))]:
+    for label, val in [(t("Base Commission"), round(c['base_commission'], 0)),
+                       (t("KPI Score"),        round(c['kpi_score'], 2)),
+                       (t("KPI Multiplier"),   c['kpi_multiplier']),
+                       (t("FINAL COMMISSION"), round(c['final_commission'], 0))]:
         ws.append([label, val])
     _fill_row(ws, ws.max_row, ACCENT, font_hex=PRIMARY.lstrip('#'), bold=True)
 
     # QoQ comparison sheet
     p  = _prev_sp_map.get(c['salesperson_name'], {})
     if p:
-        ws2 = wb.create_sheet(f"QoQ vs {_prev_label}")
-        ws2.append([f"QoQ Comparison: {c['salesperson_name']}",
-                    _prev_label, period_label, "Growth"])
+        ws2 = wb.create_sheet(f"{t('QoQ vs')} {_prev_label}")
+        if is_rtl(): ws2.sheet_view.rightToLeft = True
+        ws2.append([f"{t('QoQ Comparison')}: {c['salesperson_name']}",
+                    _prev_label, period_label, t("Growth QoQ")])
         _fill_row(ws2, 1, PRIMARY)
         ps = p.get('total_actual', 0)
         pc = p.get('final_commission', 0)
         pa = p.get('achievement', 0)
         for lbl, pv, cv in [
-            ("Total Sales",      ps,                   c['total_actual']),
-            ("Achievement %",    pa,                   c['achievement']),
-            ("Base Commission",  p.get('base_commission', 0), c['base_commission']),
-            ("Final Commission", pc,                   c['final_commission']),
+            (t("Total Sales"),      ps,                   c['total_actual']),
+            (t("Achievement %"),    pa,                   c['achievement']),
+            (t("Base Commission"),  p.get('base_commission', 0), c['base_commission']),
+            (t("Final Commission"), pc,                   c['final_commission']),
         ]:
             ws2.append([lbl, round(pv, 1), round(cv, 1), _qoq_g(cv, pv)])
         ws2.append([])
-        ws2.append(["FINAL COMMISSION GROWTH", "", "", _qoq_g(c['final_commission'], pc)])
+        ws2.append([t("FINAL COMMISSION GROWTH"), "", "", _qoq_g(c['final_commission'], pc)])
         _fill_row(ws2, ws2.max_row, ACCENT, font_hex=PRIMARY.lstrip('#'), bold=True)
         _auto_width(ws2)
 

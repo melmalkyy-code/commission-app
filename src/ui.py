@@ -11,6 +11,7 @@ _FONT_AR = "https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700&disp
 
 _CSS = """
 @import url('{font}');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700&display=swap');
 
 /* ── Base font ── */
 html, body, [class*="css"], .stApp {{
@@ -232,6 +233,9 @@ hr {{
 /* ── Hide Streamlit footer + menu ── */
 #MainMenu {{ visibility: hidden; }}
 footer {{ visibility: hidden; }}
+
+/* ── Hide auto-generated sidebar nav (replaced by translated custom nav) ── */
+[data-testid="stSidebarNav"] {{ display: none !important; }}
 /* DO NOT hide stToolbar — it contains the sidebar toggle in some Streamlit builds */
 
 /* ── Sidebar collapse/expand toggle — always visible and clickable ── */
@@ -297,8 +301,24 @@ def page_header(title: str, subtitle: str = "", primary: str = "#354f61") -> Non
     )
 
 
+def sidebar_nav() -> None:
+    """Render translated page navigation links in the sidebar."""
+    _pages = [
+        ("Home.py",               "🏠", "Dashboard"),
+        ("pages/2_Sales.py",      "📊", "Sales Input"),
+        ("pages/3_KPI.py",        "🎯", "KPI Calculation"),
+        ("pages/4_Commission.py", "💰", "Commission Report"),
+        ("pages/5_Reports.py",    "📑", "Reports Center"),
+        ("pages/6_Settings.py",   "⚙️", "Settings"),
+        ("pages/7_Audit.py",      "📋", "Audit Log"),
+    ]
+    for _path, _icon, _label in _pages:
+        st.sidebar.page_link(_path, label=f"{_icon} {t(_label)}")
+    st.sidebar.markdown("---")
+
+
 def sidebar_logo(company: str = "Surveying Experts", primary: str = "#354f61") -> None:
-    """Render SE logo block + language switcher in the sidebar."""
+    """Render SE logo block + language switcher + navigation in the sidebar."""
     st.sidebar.markdown(
         f"<div style='padding:18px 0 14px;text-align:center;border-bottom:"
         f"1px solid rgba(255,255,255,0.1);margin-bottom:8px'>"
@@ -312,6 +332,7 @@ def sidebar_logo(company: str = "Surveying Experts", primary: str = "#354f61") -
         unsafe_allow_html=True,
     )
     lang_switcher()
+    sidebar_nav()
 
 
 def period_selector(suffix: str = "") -> tuple[int, int, dict]:

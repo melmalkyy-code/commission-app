@@ -30,15 +30,7 @@ COMPANY = get_setting('company_name',  'Surveying Experts')
 inject_css(PRIMARY)
 sidebar_logo(COMPANY, PRIMARY)
 
-# ── Sidebar nav + period ──────────────────────────────────────────────────────
-st.sidebar.page_link("Home.py",               label=t("Dashboard"))
-st.sidebar.page_link("pages/2_Sales.py",      label=t("Sales Input"))
-st.sidebar.page_link("pages/3_KPI.py",        label=t("KPI Calculation"))
-st.sidebar.page_link("pages/4_Commission.py", label=t("Commission Report"))
-st.sidebar.page_link("pages/5_Reports.py",    label=t("Reports Center"))
-st.sidebar.page_link("pages/6_Settings.py",   label=t("Settings"))
-st.sidebar.page_link("pages/7_Audit.py",      label=t("Audit Log"))
-st.sidebar.markdown("---")
+# ── Sidebar period selector ───────────────────────────────────────────────────
 st.sidebar.markdown(
     f"<span style='font-size:11px;text-transform:uppercase;letter-spacing:.1em'>"
     f"{t('Active Period')}</span>", unsafe_allow_html=True)
@@ -129,7 +121,7 @@ tab_co, tab_br, tab_sp, tab_qoq = st.tabs([
 # ════════════════════ COMPANY ═════════════════════════════════════════════════
 with tab_co:
     if not commissions:
-        st.info("No data for this period.")
+        st.info(t("No data for this period."))
     else:
         col_l, col_r = st.columns([3, 2])
 
@@ -211,7 +203,7 @@ with tab_co:
 # ════════════════════ BY BRANCH ══════════════════════════════════════════════
 with tab_br:
     if not commissions:
-        st.info("No data for this period.")
+        st.info(t("No data for this period."))
     else:
         branch_map = {}
         for c in commissions:
@@ -237,16 +229,16 @@ with tab_br:
                 f"<div style='font-size:14px;font-weight:700;color:#fff;margin-bottom:10px'>"
                 f"{br_name}</div>"
                 f"<div style='font-size:10px;text-transform:uppercase;letter-spacing:.08em;"
-                f"color:rgba(255,255,255,.5);margin-bottom:2px'>Salespersons</div>"
+                f"color:rgba(255,255,255,.5);margin-bottom:2px'>{t('Salespersons')}</div>"
                 f"<div style='font-size:16px;font-weight:600;color:#fff'>{bv['count']}</div>"
                 f"<div style='font-size:10px;text-transform:uppercase;letter-spacing:.08em;"
-                f"color:rgba(255,255,255,.5);margin:8px 0 2px'>Sales</div>"
+                f"color:rgba(255,255,255,.5);margin:8px 0 2px'>{t('Sales')}</div>"
                 f"<div style='font-size:13px;font-weight:600;color:{ACCENT}'>{sar(bv['sales'])}</div>"
                 f"<div style='font-size:10px;text-transform:uppercase;letter-spacing:.08em;"
-                f"color:rgba(255,255,255,.5);margin:8px 0 2px'>Achievement</div>"
+                f"color:rgba(255,255,255,.5);margin:8px 0 2px'>{t('Achievement')}</div>"
                 f"<div style='font-size:18px;font-weight:700;color:{a_col}'>{ach:.1f}%</div>"
                 f"<div style='font-size:10px;text-transform:uppercase;letter-spacing:.08em;"
-                f"color:rgba(255,255,255,.5);margin:8px 0 2px'>Final Comm.</div>"
+                f"color:rgba(255,255,255,.5);margin:8px 0 2px'>{t('Final Comm.')}</div>"
                 f"<div style='font-size:13px;font-weight:600;color:{ACCENT}'>{sar(bv['final'])}</div>"
                 f"</div>",
                 unsafe_allow_html=True,
@@ -290,7 +282,7 @@ with tab_br:
 # ════════════════════ BY SALESPERSON ═════════════════════════════════════════
 with tab_sp:
     if not commissions:
-        st.info("No data for this period.")
+        st.info(t("No data for this period."))
     else:
         rows = [{
             t("Salesperson"): c['salesperson_name'],

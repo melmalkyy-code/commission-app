@@ -72,8 +72,8 @@ for sp in salespeople:
     for item in manual_items:
         col = f"{item['name']} ({item['weight']:.0f}%)"
         row[col] = db_scores[(sp['id'], item['id'])]
-    row['Bonus pts']   = db_adjs[sp['id']]['bonus']
-    row['Penalty pts'] = db_adjs[sp['id']]['penalty']
+    row[t('Bonus pts')]   = db_adjs[sp['id']]['bonus']
+    row[t('Penalty pts')] = db_adjs[sp['id']]['penalty']
     rows.append(row)
 
 _auto_sfx = " [Auto]" if not t("Auto") == "Auto" else f" [{t('Auto')}]"
@@ -132,8 +132,8 @@ def _auto_save_kpi():
             if abs(val - db_scores[(sp['id'], item['id'])]) > 0.001:
                 save_kpi_score(period['id'], sp['id'], item['id'], val)
                 changed = True
-        bonus   = _safe_float(row, 'Bonus pts')
-        penalty = _safe_float(row, 'Penalty pts')
+        bonus   = _safe_float(row, t('Bonus pts'))
+        penalty = _safe_float(row, t('Penalty pts'))
         prev    = db_adjs[sp['id']]
         if abs(bonus - prev['bonus']) > 0.001 or abs(penalty - prev['penalty']) > 0.001:
             save_kpi_adjustment(period['id'], sp['id'], bonus, penalty)
@@ -155,8 +155,8 @@ if st.button(t("Save KPI Scores"), type="primary", key="save_kpi_scores"):
             save_kpi_score(period['id'], sp['id'], item['id'], _safe_float(row, col))
         save_kpi_adjustment(
             period['id'], sp['id'],
-            _safe_float(row, 'Bonus pts'),
-            _safe_float(row, 'Penalty pts'),
+            _safe_float(row, t('Bonus pts')),
+            _safe_float(row, t('Penalty pts')),
         )
     log_action("KPI_SAVE_ALL", "kpi_records", notes=f"Q{quarter} {year}")
     st.cache_data.clear()
