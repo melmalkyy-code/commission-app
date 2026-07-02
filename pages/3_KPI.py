@@ -42,169 +42,130 @@ if abs(total_weight - 100.0) > 0.01:
         "Fix in Settings > KPI Settings."
     )
 
-# ── Auto-calculated items ─────────────────────────────────────────────────────
-if auto_items:
-    with st.expander(
-        f"Auto-Calculated KPI Items ({len(auto_items)} items — from category achievement %)",
-        expanded=False,
-    ):
-        st.caption("Scores are pulled automatically from actual sales vs target. No manual entry needed.")
-        auto_rows = []
-        for sp in salespeople:
-            row = {
-                "Salesperson": sp['name'],
-                "Branch":      sp.get('branch_name') or '',
-            }
-            for item in auto_items:
-                ach = get_category_achievement(period['id'], sp['id'], item['linked_category_id'])
-                row[f"{item['name']} ({item['weight']:.0f}%) [Auto]"] = f"{ach:.1f}%"
-            auto_rows.append(row)
-        st.dataframe(pd.DataFrame(auto_rows), use_container_width=True, hide_index=True)
-
-# ── Manual KPI entry ──────────────────────────────────────────────────────────
-if manual_items:
-    st.markdown("**Manual KPI Scores** — Enter scores (0–100) for each item:")
-    st.caption("Changes are saved automatically as you edit each cell.")
-
-    # Load current DB state for comparison
-    db_scores = {}
-    db_adjs   = {}
-    for sp in salespeople:
-        for item in manual_items:
-            db_scores[(sp['id'], item['id'])] = float(
-                get_kpi_score(period['id'], sp['id'], item['id']) or 0
-            )
-        adj = get_kpi_adjustment(period['id'], sp['id'])
-        db_adjs[sp['id']] = {
-            'bonus':   float(adj.get('bonus_points', 0) or 0),
-            'penalty': float(adj.get('penalty_points', 0) or 0),
-        }
-
-    rows = []
-    for sp in salespeople:
-        row = {
-            'Salesperson': sp['name'],
-            'Branch':      sp.get('branch_name') or '',
-            '_sp_id':      sp['id'],
-        }
-        for item in manual_items:
-            row[f"{item['name']} ({item['weight']:.0f}%)"] = db_scores[(sp['id'], item['id'])]
-        row['Bonus pts']   = db_adjs[sp['id']]['bonus']
-        row['Penalty pts'] = db_adjs[sp['id']]['penalty']
-        rows.append(row)
-
-    df = pd.DataFrame(rows)
-    manual_col_names = [f"{i['name']} ({i['weight']:.0f}%)" for i in manual_items]
-    display_cols     = ['Salesperson', 'Branch'] + manual_col_names + ['Bonus pts', 'Penalty pts']
-    editable_df      = df[display_cols].copy()
-
-    col_configs = {
-        col_name: st.column_config.NumberColumn(col_name, min_value=0, max_value=100, step=1, format="%.1f")
-        for col_name in manual_col_names
+# ── Load all current DB state (auto + manual) ─────────────────────────────────
+db_scores = {}
+db_adjs   = {}
+for sp in salespeople:
+    for item in kpi_items:
+        db_scores[(sp['id'], item['id'])] = float(
+            get_kpi_score(period['id'], sp['id'], item['id']) or 0
+        )
+    adj = get_kpi_adjustment(period['id'], sp['id'])
+    db_adjs[sp['id']] = {
+        'bonus':   float(adj.get('bonus_points', 0) or 0),
+        'penalty': float(adj.get('penalty_points', 0) or 0),
     }
-    col_configs['Bonus pts']   = st.column_config.NumberColumn("Bonus pts",   min_value=0, max_value=20, step=0.5)
-    col_configs['Penalty pts'] = st.column_config.NumberColumn("Penalty pts", min_value=0, max_value=20, step=0.5)
 
-    edited = st.data_editor(
-        editable_df,
-        use_container_width=True,
-        disabled=['Salesperson', 'Branch'],
-        column_config=col_configs,
-        num_rows="fixed",
-        hide_index=True,
-        key="kpi_editor",
+# ── Unified KPI table — auto items shown (locked), manual items editable ──────
+st.markdown("**KPI Scores** — auto-calculated items are locked (grey); manual items are editable.")
+st.caption(
+    "Scores are entered as raw values and calculated against each item's Max Score. "
+    "Example: score 42 with Max 50 → 84 % of that item's weight."
+)
+
+rows = []
+for sp in salespeople:
+    row = {
+        'Salesperson': sp['name'],
+        'Branch':      sp.get('branch_name') or '',
+        '_sp_id':      sp['id'],
+    }
+    for item in auto_items:
+        ach = get_category_achievement(period['id'], sp['id'], item['linked_category_id'])
+        col = f"{item['name']} ({item['weight']:.0f}%) [Auto]"
+        row[col] = round(ach, 1)
+    for item in manual_items:
+        col = f"{item['name']} ({item['weight']:.0f}%)"
+        row[col] = db_scores[(sp['id'], item['id'])]
+    row['Bonus pts']   = db_adjs[sp['id']]['bonus']
+    row['Penalty pts'] = db_adjs[sp['id']]['penalty']
+    rows.append(row)
+
+auto_col_names   = [f"{i['name']} ({i['weight']:.0f}%) [Auto]" for i in auto_items]
+manual_col_names = [f"{i['name']} ({i['weight']:.0f}%)"        for i in manual_items]
+display_cols     = (['Salesperson', 'Branch']
+                    + auto_col_names + manual_col_names
+                    + ['Bonus pts', 'Penalty pts'])
+editable_df = pd.DataFrame(rows)[display_cols].copy()
+
+col_configs: dict = {}
+for col in auto_col_names:
+    col_configs[col] = st.column_config.NumberColumn(
+        col, disabled=True, format="%.1f",
+        help="Auto-calculated from category achievement %. Read-only.",
     )
+for item, col in zip(manual_items, manual_col_names):
+    col_configs[col] = st.column_config.NumberColumn(
+        col, min_value=0, step=0.5, format="%.1f",
+        help=f"Max score for this item: {item['max_score']:.0f}. "
+             f"Contribution = (score / {item['max_score']:.0f}) × {item['weight']:.0f}% weight.",
+    )
+col_configs['Bonus pts']   = st.column_config.NumberColumn("Bonus pts",   min_value=0, step=0.5)
+col_configs['Penalty pts'] = st.column_config.NumberColumn("Penalty pts", min_value=0, step=0.5)
 
-    # ── Auto-save on change ───────────────────────────────────────────────────
-    def _safe_float(series_row, col: str, default=0.0) -> float:
-        """Read a value from an iterrows() Series by exact column name."""
-        raw = series_row.get(col)
-        try:
-            return default if (raw is None or pd.isna(raw)) else float(raw)
-        except Exception:
-            return default
+edited = st.data_editor(
+    editable_df,
+    use_container_width=True,
+    disabled=['Salesperson', 'Branch'] + auto_col_names,
+    column_config=col_configs,
+    num_rows="fixed",
+    hide_index=True,
+    key="kpi_editor",
+)
 
-    def _auto_save_kpi():
-        changed = False
-        for idx, (_, row) in enumerate(edited.iterrows()):
-            if idx >= len(salespeople):
-                break
-            sp = salespeople[idx]
-            for item in manual_items:
-                col = f"{item['name']} ({item['weight']:.0f}%)"
-                val = min(_safe_float(row, col), item['max_score'])
-                if abs(val - db_scores[(sp['id'], item['id'])]) > 0.001:
-                    save_kpi_score(period['id'], sp['id'], item['id'], val)
-                    changed = True
 
-            bonus   = _safe_float(row, 'Bonus pts')
-            penalty = _safe_float(row, 'Penalty pts')
-            prev    = db_adjs[sp['id']]
-            if abs(bonus - prev['bonus']) > 0.001 or abs(penalty - prev['penalty']) > 0.001:
-                save_kpi_adjustment(period['id'], sp['id'], bonus, penalty)
-                changed = True
+def _safe_float(series_row, col: str, default=0.0) -> float:
+    raw = series_row.get(col)
+    try:
+        return default if (raw is None or pd.isna(raw)) else float(raw)
+    except Exception:
+        return default
 
-        if changed:
-            st.cache_data.clear()
-            st.toast("KPI changes saved", icon="✅")
 
-    _auto_save_kpi()
-
-    # Explicit save button as fallback
-    if st.button("Save KPI Scores", type="primary"):
-        for idx, (_, row) in enumerate(edited.iterrows()):
-            if idx >= len(salespeople):
-                break
-            sp = salespeople[idx]
-            for item in manual_items:
-                col = f"{item['name']} ({item['weight']:.0f}%)"
-                val = min(_safe_float(row, col), item['max_score'])
+def _auto_save_kpi():
+    if not manual_items:
+        return
+    changed = False
+    for idx, (_, row) in enumerate(edited.iterrows()):
+        if idx >= len(salespeople):
+            break
+        sp = salespeople[idx]
+        for item in manual_items:
+            col = f"{item['name']} ({item['weight']:.0f}%)"
+            val = _safe_float(row, col)               # no cap — open score
+            if abs(val - db_scores[(sp['id'], item['id'])]) > 0.001:
                 save_kpi_score(period['id'], sp['id'], item['id'], val)
-            save_kpi_adjustment(
-                period['id'], sp['id'],
-                _safe_float(row, 'Bonus pts'),
-                _safe_float(row, 'Penalty pts'),
-            )
-        log_action("KPI_SAVE_ALL", "kpi_records", notes=f"Q{quarter} {year}")
+                changed = True
+        bonus   = _safe_float(row, 'Bonus pts')
+        penalty = _safe_float(row, 'Penalty pts')
+        prev    = db_adjs[sp['id']]
+        if abs(bonus - prev['bonus']) > 0.001 or abs(penalty - prev['penalty']) > 0.001:
+            save_kpi_adjustment(period['id'], sp['id'], bonus, penalty)
+            changed = True
+    if changed:
         st.cache_data.clear()
-        st.success("KPI scores saved.")
-        st.rerun()
+        st.toast("KPI changes saved", icon="✅")
 
-else:
-    st.info("All KPI items are linked to categories and auto-calculated. No manual entry needed.")
-    st.markdown("**Bonus / Penalty Adjustments:**")
-    adj_rows = []
-    for sp in salespeople:
-        adj = get_kpi_adjustment(period['id'], sp['id'])
-        adj_rows.append({
-            'Salesperson': sp['name'],
-            'Branch':      sp.get('branch_name') or '',
-            '_sp_id':      sp['id'],
-            'Bonus pts':   float(adj.get('bonus_points', 0) or 0),
-            'Penalty pts': float(adj.get('penalty_points', 0) or 0),
-        })
-    adj_df     = pd.DataFrame(adj_rows)[['Salesperson', 'Branch', 'Bonus pts', 'Penalty pts']]
-    edited_adj = st.data_editor(
-        adj_df, use_container_width=True,
-        disabled=['Salesperson', 'Branch'],
-        hide_index=True, key="adj_editor",
-    )
-    if st.button("Save Adjustments", type="primary"):
-        for idx, row in enumerate(edited_adj.itertuples(index=False)):
-            if idx >= len(salespeople):
-                break
-            sp = salespeople[idx]
-            try:
-                save_kpi_adjustment(
-                    period['id'], sp['id'],
-                    float(row.Bonus_pts or 0),
-                    float(row.Penalty_pts or 0),
-                )
-            except Exception:
-                pass
-        st.cache_data.clear()
-        st.success("Adjustments saved.")
-        st.rerun()
+
+_auto_save_kpi()
+
+if st.button("Save KPI Scores", type="primary", key="save_kpi_scores"):
+    for idx, (_, row) in enumerate(edited.iterrows()):
+        if idx >= len(salespeople):
+            break
+        sp = salespeople[idx]
+        for item in manual_items:
+            col = f"{item['name']} ({item['weight']:.0f}%)"
+            save_kpi_score(period['id'], sp['id'], item['id'], _safe_float(row, col))
+        save_kpi_adjustment(
+            period['id'], sp['id'],
+            _safe_float(row, 'Bonus pts'),
+            _safe_float(row, 'Penalty pts'),
+        )
+    log_action("KPI_SAVE_ALL", "kpi_records", notes=f"Q{quarter} {year}")
+    st.cache_data.clear()
+    st.success("KPI scores saved.")
+    st.rerun()
 
 # ── KPI Results Preview ───────────────────────────────────────────────────────
 st.divider()
