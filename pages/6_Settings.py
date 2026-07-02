@@ -73,6 +73,30 @@ with tabs[0]:
             st.cache_data.clear()
             st.rerun()
 
+    st.divider()
+    st.markdown("#### Company Logo")
+    import base64 as _b64
+    _existing_logo = get_setting('company_logo_b64', '')
+    if _existing_logo:
+        st.image(_b64.b64decode(_existing_logo), width=120)
+        if st.button("Remove Logo", key="remove_logo"):
+            set_setting('company_logo_b64', '')
+            st.cache_data.clear()
+            st.rerun()
+    uploaded_logo = st.file_uploader(
+        "Upload logo (PNG or JPG, max 500 KB)",
+        type=['png', 'jpg', 'jpeg'], key="b_logo",
+    )
+    if uploaded_logo:
+        raw = uploaded_logo.read()
+        if len(raw) > 500_000:
+            st.error("File too large — keep it under 500 KB.")
+        else:
+            set_setting('company_logo_b64', _b64.b64encode(raw).decode())
+            st.cache_data.clear()
+            st.success("Logo saved.")
+            st.rerun()
+
 
 # ── BRANCHES ─────────────────────────────────────────────────────────────────
 with tabs[1]:
@@ -224,11 +248,26 @@ with tabs[4]:
     st.markdown("### Product / Service Categories")
     cats = get_categories()
 
-    with st.expander("Add Category"):
+    # ── Action toolbar ────────────────────────────────────────────────────────
+    st.markdown(
+        "<div style='display:flex;align-items:center;gap:16px;padding:8px 0 4px;"
+        "border-bottom:1px solid #e5e8eb;margin-bottom:12px'>"
+        "<span style='font-size:20px'>📂</span>"
+        "<span style='font-size:13px;color:#6b757d'>"
+        "✏️ Edit cells inline &nbsp;·&nbsp; "
+        "＋ Add via form below &nbsp;·&nbsp; "
+        "☑ Tick rows then click <b>Delete Selected</b>"
+        "</span></div>",
+        unsafe_allow_html=True,
+    )
+
+    # ── Add form ──────────────────────────────────────────────────────────────
+    with st.expander("＋ Add New Category"):
         with st.form("add_cat_form"):
-            cn = st.text_input("Category Name *", key="new_cat_name")
-            co = st.number_input("Display Order", min_value=0, value=0, key="new_cat_order")
-            if st.form_submit_button("Add", type="primary") and cn:
+            cc1, cc2 = st.columns([3, 1])
+            cn = cc1.text_input("Category Name *", key="new_cat_name")
+            co = cc2.number_input("Display Order", min_value=0, value=len(cats), key="new_cat_order")
+            if st.form_submit_button("Add Category", type="primary") and cn:
                 try:
                     cid = add_category(cn, co)
                     update_category(cid, cn, co, True, True, True, True)
@@ -241,6 +280,7 @@ with tabs[4]:
 
     if cats:
         cat_df = pd.DataFrame([{
+            "✓":             False,
             "ID":            c['id'],
             "Name":          c['name'],
             "Order":         c['display_order'],
@@ -249,11 +289,21 @@ with tabs[4]:
             "In KPI":        bool(c['include_in_kpi']),
             "Active":        bool(c['is_active']),
         } for c in cats])
+
         edited_cats = st.data_editor(
             cat_df, use_container_width=True, hide_index=True,
             disabled=["ID"], num_rows="fixed", key="cat_editor",
+            column_config={
+                "✓":    st.column_config.CheckboxColumn("✓", default=False),
+                "ID":   st.column_config.NumberColumn("ID", disabled=True),
+                "Order": st.column_config.NumberColumn("Order", min_value=0, step=1),
+            },
         )
-        if st.button("Save Category Changes", type="primary", key="save_cats"):
+
+        selected_ids = edited_cats.loc[edited_cats["✓"] == True, "ID"].tolist()
+        sb_col, db_col, _ = st.columns([2, 3, 7])
+
+        if sb_col.button("💾 Save Changes", type="primary", key="save_cats", use_container_width=True):
             for _, row in edited_cats.iterrows():
                 update_category(int(row['ID']), row['Name'], int(row['Order']),
                                 bool(row['In Target']), bool(row['In Commission']),
@@ -261,6 +311,24 @@ with tabs[4]:
             st.cache_data.clear()
             st.success("Categories saved.")
             st.rerun()
+
+        del_label = (f"🗑 Delete {len(selected_ids)} Selected"
+                     if selected_ids else "🗑 Delete Selected")
+        if db_col.button(del_label, type="secondary", key="del_cats",
+                         use_container_width=True, disabled=not selected_ids):
+            for cid in selected_ids:
+                try:
+                    delete_category(int(cid))
+                except Exception as e:
+                    st.error(f"Cannot delete category: {e}")
+            st.cache_data.clear()
+            st.success(
+                f"Deleted {len(selected_ids)} "
+                f"categor{'y' if len(selected_ids) == 1 else 'ies'}."
+            )
+            st.rerun()
+    else:
+        st.info("No categories yet. Use '＋ Add New Category' above to get started.")
 
 
 # ── COMMISSION BRACKETS ───────────────────────────────────────────────────────

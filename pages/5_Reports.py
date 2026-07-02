@@ -1,4 +1,4 @@
-import sys, os, io; sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import sys, os, io, base64; sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import streamlit as st
 import pandas as pd
 from src.startup import init_db
@@ -13,6 +13,8 @@ from src.ui import inject_css, page_header, sidebar_logo
 PRIMARY = get_setting('primary_color', '#354f61')
 ACCENT  = get_setting('accent_color', '#f6ba3b')
 COMPANY = get_setting('company_name', 'Surveying Experts')
+_LOGO_B64   = get_setting('company_logo_b64', '')
+_LOGO_BYTES = base64.b64decode(_LOGO_B64) if _LOGO_B64 else None
 st.set_page_config(page_title="Reports Center — Surveying Experts", layout="wide")
 inject_css(PRIMARY)
 sidebar_logo(COMPANY, PRIMARY)
@@ -48,6 +50,19 @@ def _auto_width(ws):
         ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 50)
 
 
+def _insert_logo_xl(ws):
+    if not _LOGO_BYTES:
+        return
+    try:
+        from openpyxl.drawing.image import Image as XLImage
+        img = XLImage(io.BytesIO(_LOGO_BYTES))
+        img.width, img.height = 90, 45
+        ws.add_image(img, 'A1')
+        ws.row_dimensions[1].height = 40
+    except Exception:
+        pass
+
+
 # ─── Company Excel ────────────────────────────────────────────────────────────
 def make_excel_company() -> bytes:
     from openpyxl import Workbook
@@ -60,6 +75,7 @@ def make_excel_company() -> bytes:
     ws.title = "Company Summary"
     ws.append([COMPANY, "", f"Commission Report - {period_label}"])
     _fill_row(ws, 1, PRIMARY)
+    _insert_logo_xl(ws)
     ws.append([])
     ws.append(["Metric", "Value"])
     _fill_row(ws, 3, PRIMARY)
@@ -136,6 +152,7 @@ def make_excel_branch(branch_name: str, persons: list) -> bytes:
     ws.title = "Branch Report"
     ws.append([COMPANY, branch_name, period_label])
     _fill_row(ws, 1, PRIMARY)
+    _insert_logo_xl(ws)
     ws.append([])
     ws.append(["Salesperson", "Tier", "Sales", "Target", "Ach %",
                "Base Comm.", "KPI Score", "KPI x", "Final Comm."])
@@ -168,6 +185,7 @@ def make_excel_salesperson(c: dict) -> bytes:
     ws.title = "Commission Report"
     ws.append([COMPANY, period_label, c['salesperson_name'], c['branch_name'], c['tier_name']])
     _fill_row(ws, 1, PRIMARY)
+    _insert_logo_xl(ws)
     ws.append([])
     ws.append(["Category", "Actual Sales", "Target", "Achievement %",
                "Bracket", "Rate %", "Commission"])
@@ -193,7 +211,8 @@ def make_excel_salesperson(c: dict) -> bytes:
 # ─── Salesperson PDF ──────────────────────────────────────────────────────────
 def make_pdf_salesperson(c: dict) -> bytes:
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
-                                    Table, TableStyle, HRFlowable)
+                                    Table, TableStyle, HRFlowable,
+                                    Image as _RLImage)
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.colors import HexColor
     from reportlab.lib.pagesizes import A4
@@ -214,12 +233,34 @@ def make_pdf_salesperson(c: dict) -> bytes:
                                fontSize=11, fontName='Helvetica-Bold',
                                textColor=pc, spaceBefore=12, spaceAfter=6)
 
-    story.append(Paragraph(COMPANY, title_st))
-    story.append(Paragraph(
-        f"Commission Report | {period_label} | "
-        f"{c['salesperson_name']} | {c['branch_name']}",
-        sub_st,
-    ))
+    # Header — logo left, title right
+    from reportlab.platypus import Table as RLTable, TableStyle as RLTS
+    from reportlab.lib.units import cm
+    header_logo = None
+    if _LOGO_BYTES:
+        try:
+            from reportlab.lib.utils import ImageReader
+            header_logo = _RLImage(ImageReader(io.BytesIO(_LOGO_BYTES)),
+                                   width=2.4 * cm, height=1.2 * cm)
+        except Exception:
+            header_logo = None
+    title_block = [
+        Paragraph(COMPANY, title_st),
+        Paragraph(
+            f"Commission Report | {period_label} | "
+            f"{c['salesperson_name']} | {c['branch_name']}",
+            sub_st,
+        ),
+    ]
+    if header_logo:
+        hdr_tbl = RLTable([[header_logo, title_block]], colWidths=[2.8 * cm, None])
+        hdr_tbl.setStyle(RLTS([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (0, 0), 0),
+        ]))
+        story.append(hdr_tbl)
+    else:
+        story.extend(title_block)
     story.append(HRFlowable(width="100%", thickness=2, color=pc))
     story.append(Spacer(1, 10))
 
