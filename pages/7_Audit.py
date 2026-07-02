@@ -2,7 +2,7 @@ import sys, os; sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..')
 import streamlit as st
 import pandas as pd
 from src.startup import init_db
-from src.auth import require_login, logout_button
+from src.auth import require_login
 init_db()
 require_login()
 from src.models import get_setting, get_audit_logs
@@ -61,4 +61,4 @@ if logs:
 else:
     st.info(t("No audit records match the current filters."))
 
-logout_button()
+

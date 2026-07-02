@@ -1,7 +1,7 @@
 import sys, os; sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import streamlit as st
 from src.startup import init_db
-from src.auth import require_login, logout_button
+from src.auth import require_login
 init_db()
 require_login()
 import pandas as pd
@@ -211,4 +211,4 @@ with st.expander(t("Import from Excel / Download Template")):
         st.success(t("Imported {count} records.").format(count=count))
         st.rerun()
 
-logout_button()
+

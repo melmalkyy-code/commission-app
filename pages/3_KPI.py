@@ -1,7 +1,7 @@
 import sys, os; sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import streamlit as st
 from src.startup import init_db
-from src.auth import require_login, logout_button
+from src.auth import require_login
 init_db()
 require_login()
 import pandas as pd
@@ -215,4 +215,4 @@ with st.expander(t("Detailed Item Breakdown (per salesperson)")):
         c2.metric(t("Final KPI Score"), f"{kpi['final_score']:.2f}")
         c2.metric(t("KPI Multiplier"),  f"x {kpi['multiplier']}")
 
-logout_button()
+

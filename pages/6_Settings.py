@@ -2,7 +2,7 @@ import sys, os; sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..')
 import streamlit as st
 import pandas as pd
 from src.startup import init_db
-from src.auth import require_login, logout_button, require_admin
+from src.auth import require_login, require_admin
 init_db()
 require_login()
 require_admin()
@@ -665,4 +665,4 @@ with tabs[8]:
                             _save(delete_user, u['id'], ok=f"User '{u['username']}' deleted.")
                             st.rerun()
 
-logout_button()
+

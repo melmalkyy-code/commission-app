@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from src.startup import init_db
-from src.auth import require_login, logout_button
+from src.auth import require_login
 init_db()
 require_login()
 from src.models import get_setting, get_or_create_period
@@ -267,4 +267,4 @@ with tab_person:
                     unsafe_allow_html=True,
                 )
 
-logout_button()
+

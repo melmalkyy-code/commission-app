@@ -269,10 +269,14 @@ footer {{ visibility: hidden; }}
 
 _RTL_CSS = """
 @import url('{font_ar}');
-/* Arabic RTL overrides */
+/* ── Arabic RTL overrides ── */
 html, body, .main, .main .block-container,
 .main [data-testid="stVerticalBlock"],
-.main [data-testid="stHorizontalBlock"] > div {{
+.main [data-testid="stHorizontalBlock"] > div,
+.stForm, .stExpander, .stAlert,
+[data-testid="stMarkdownContainer"],
+[data-testid="stText"],
+[data-baseweb="tab-panel"] {{
   direction: rtl !important;
   text-align: right !important;
 }}
@@ -281,8 +285,27 @@ html, body, [class*="css"], .stApp {{
 }}
 h1, h2, h3, h4, h5, h6 {{
   font-family: 'Cairo', system-ui, sans-serif !important;
+  text-align: right !important;
+}}
+/* Input labels and captions */
+label, .stTextInput label, .stSelectbox label,
+.stNumberInput label, .stCheckbox label,
+.stRadio label, [data-testid="stWidgetLabel"] {{
+  direction: rtl !important;
+  text-align: right !important;
+  width: 100% !important;
+}}
+/* Metrics */
+[data-testid="stMetricLabel"],
+[data-testid="stMetricValue"] {{
+  text-align: right !important;
+}}
+/* Tabs — RTL order */
+[data-baseweb="tab-list"] {{
+  direction: rtl !important;
 }}
 /* Keep sidebar LTR so navigation stays readable */
+[data-testid="stSidebar"],
 [data-testid="stSidebar"] * {{
   direction: ltr !important;
   text-align: left !important;
@@ -300,14 +323,20 @@ def inject_css(primary: str = "#354f61") -> None:
 
 def page_header(title: str, subtitle: str = "", primary: str = "#354f61") -> None:
     """Render a consistent SE-branded page header."""
-    sub_html = f"<p style='color:#6b757d;margin:2px 0 0;font-size:14px'>{subtitle}</p>" if subtitle else ""
-    st.markdown(
-        f"<div style='margin-bottom:1.5rem'>"
+    rtl   = is_rtl()
+    align = "right" if rtl else "left"
+    dir_s = "direction:rtl;" if rtl else ""
+    font  = "'Cairo',system-ui,sans-serif" if rtl else "'IBM Plex Sans',system-ui,sans-serif"
+    sub_html = (
+        f"<p style='color:#6b757d;margin:2px 0 0;font-size:14px;"
+        f"text-align:{align};{dir_s}font-family:{font}'>{subtitle}</p>"
+    ) if subtitle else ""
+    st.html(
+        f"<div style='margin-bottom:1.5rem;{dir_s}text-align:{align}'>"
         f"<h1 style='color:{primary};margin:0;font-size:26px;font-weight:700;"
-        f"letter-spacing:-0.02em'>{title}</h1>"
+        f"letter-spacing:-0.02em;font-family:{font};text-align:{align};{dir_s}'>{title}</h1>"
         f"{sub_html}"
-        f"</div>",
-        unsafe_allow_html=True,
+        f"</div>"
     )
 
 
@@ -343,6 +372,9 @@ def sidebar_logo(company: str = "Surveying Experts", primary: str = "#354f61") -
     )
     lang_switcher()
     sidebar_nav()
+    # Logout always rendered here so it appears on every page without per-page calls
+    from src.auth import logout_button
+    logout_button()
 
 
 def period_selector(suffix: str = "") -> tuple[int, int, dict]:

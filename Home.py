@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from src.startup import init_db
-from src.auth import require_login, logout_button
+from src.auth import require_login
 from src.models import get_setting, get_or_create_period, get_period, get_sales
 
 st.set_page_config(
@@ -40,7 +40,6 @@ quarter = c2.selectbox(t("Quarter"), [1, 2, 3, 4],             index=1, key="hom
                         format_func=q_label)
 period  = get_or_create_period(year, quarter)
 st.sidebar.markdown("---")
-logout_button()
 
 period_label = f"Q{quarter} {year}"
 lock_badge   = t("Locked") if period.get('is_locked') else t("Open")

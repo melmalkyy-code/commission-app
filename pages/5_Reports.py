@@ -2,7 +2,7 @@
 import streamlit as st
 import pandas as pd
 from src.startup import init_db
-from src.auth import require_login, logout_button
+from src.auth import require_login
 init_db()
 require_login()
 from src.models import get_setting, get_or_create_period, get_period, get_branches, get_salespersons
@@ -829,4 +829,4 @@ with tab_person:
         } for c in sorted(commissions, key=lambda x: x['final_commission'], reverse=True)]
         st.dataframe(pd.DataFrame(quick_rows), use_container_width=True, hide_index=True)
 
-logout_button()
+
