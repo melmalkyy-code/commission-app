@@ -59,7 +59,10 @@ def _open_sqlite():
     else:
         db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'commission_web.db')
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    conn = sqlite3.connect(db_path, check_same_thread=False)
+    # isolation_level=None enables autocommit — matches PG's autocommit=True
+    # and avoids "cannot commit transaction - SQL statements in progress" errors
+    # that occur when conn.commit() is called while a RETURNING cursor is open.
+    conn = sqlite3.connect(db_path, check_same_thread=False, isolation_level=None)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
@@ -136,29 +139,16 @@ def execute(sql: str, params: tuple = ()) -> Any:
     cur     = conn.cursor()
     try:
         cur.execute(adapted, params)
-        if not is_pg:
-            conn.commit()
+        # No explicit commit: PG uses autocommit=True, SQLite uses isolation_level=None
         return cur
     except Exception:
         if not is_pg:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
             raise
         # PostgreSQL failed mid-query — fall back to SQLite for this thread
         _thread_fallback_to_sqlite()
         adapted2 = sql.replace('%s', '?')
         cur2     = _local.conn.cursor()
-        try:
-            cur2.execute(adapted2, params)
-            _local.conn.commit()
-        except Exception:
-            try:
-                _local.conn.rollback()
-            except Exception:
-                pass
-            raise
+        cur2.execute(adapted2, params)
         return cur2
 
 
@@ -179,7 +169,7 @@ def fetchall(sql: str, params: tuple = ()) -> list:
             except Exception:
                 cols   = [d[0] for d in cur.description]
                 result = [dict(zip(cols, row)) for row in rows]
-        cur.close()   # release the statement so conn.commit() can proceed
+        cur.close()
         return result
     except Exception:
         if not is_pg:
