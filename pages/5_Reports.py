@@ -9,6 +9,7 @@ from src.models import get_setting, get_or_create_period, get_period, get_branch
 from src.calculations import calc_all_commissions, get_totals
 
 from src.ui import inject_css, page_header, sidebar_logo
+from src.i18n import t, q_label
 
 PRIMARY = get_setting('primary_color', '#354f61')
 ACCENT  = get_setting('accent_color', '#f6ba3b')
@@ -18,12 +19,12 @@ _LOGO_BYTES = base64.b64decode(_LOGO_B64) if _LOGO_B64 else None
 st.set_page_config(page_title="Reports Center — Surveying Experts", layout="wide")
 inject_css(PRIMARY)
 sidebar_logo(COMPANY, PRIMARY)
-page_header("Reports Center", "Download commission reports at company, branch, and salesperson level", PRIMARY)
+page_header(t("Reports Center"), t("Download commission reports at company, branch, and salesperson level"), PRIMARY)
 
 col1, col2, _ = st.columns([1, 1, 4])
-year    = col1.selectbox("Year",    [2024, 2025, 2026, 2027], index=2, key="rep_year")
-quarter = col2.selectbox("Quarter", [1, 2, 3, 4],             index=1, key="rep_q",
-                          format_func=lambda q: f"Q{q}")
+year    = col1.selectbox(t("Year"),    [2024, 2025, 2026, 2027], index=2, key="rep_year")
+quarter = col2.selectbox(t("Quarter"), [1, 2, 3, 4],             index=1, key="rep_q",
+                          format_func=q_label)
 period  = get_or_create_period(year, quarter)
 period_label = f"Q{quarter} {year}"
 
@@ -38,7 +39,7 @@ st.divider()
 _EMPTY_T = {'total_sales': 0, 'total_target': 0, 'achievement': 0,
             'total_base': 0, 'total_final': 0, 'achieved_count': 0, 'total_count': 0}
 
-with st.spinner("Loading data..."):
+with st.spinner(t("Loading data...")):
     commissions = calc_all_commissions(period['id'])
     totals      = get_totals(commissions)
     if _prev_period:
@@ -450,38 +451,38 @@ def make_pdf_salesperson(c: dict) -> bytes:
 # ══════════════════════════════════════════════════════════════════════════════
 # THREE-LEVEL REPORT TABS
 # ══════════════════════════════════════════════════════════════════════════════
-tab_company, tab_branch, tab_person = st.tabs(
-    ["Company Report", "Branch Report", "Salesperson Report"]
-)
+tab_company, tab_branch, tab_person = st.tabs([
+    t("Company Report"), t("Branch Report"), t("Salesperson Report"),
+])
 
 # ────────────────────────────────────────────────────────────────────────────
 # COMPANY REPORT
 # ────────────────────────────────────────────────────────────────────────────
 with tab_company:
-    st.markdown(f"### Company-Wide Report — {period_label}")
+    st.markdown(f"### {t('Company-Wide Report')} — {period_label}")
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Total Sales",      f"SAR {totals['total_sales']:,.0f}")
-    c2.metric("Achievement",      f"{totals['achievement']:.1f}%")
-    c3.metric("Base Commission",  f"SAR {totals['total_base']:,.0f}")
-    c4.metric("Final Commission", f"SAR {totals['total_final']:,.0f}")
+    c1.metric(t("Total Sales"),      f"SAR {totals['total_sales']:,.0f}")
+    c2.metric(t("Achievement"),      f"{totals['achievement']:.1f}%")
+    c3.metric(t("Base Commission"),  f"SAR {totals['total_base']:,.0f}")
+    c4.metric(t("Final Commission"), f"SAR {totals['total_final']:,.0f}")
 
     st.markdown("---")
     st.download_button(
-        label="Download Company Excel (4 sheets)",
+        label=t("Download Company Excel (4 sheets)"),
         data=make_excel_company(),
         file_name=f"{COMPANY}_{period_label.replace(' ','_')}_Report.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         type="primary",
         use_container_width=True,
     )
-    st.caption("Includes: Company Summary, All Salespersons, By Branch, Category Breakdown")
+    st.caption(t("Includes: Company Summary, All Salespersons, By Branch, Category Breakdown"))
 
 
 # ────────────────────────────────────────────────────────────────────────────
 # BRANCH REPORT
 # ────────────────────────────────────────────────────────────────────────────
 with tab_branch:
-    st.markdown(f"### Branch Reports — {period_label}")
+    st.markdown(f"### {t('Branch Reports')} — {period_label}")
 
     # Build branch groups
     branch_groups = {}
@@ -490,7 +491,7 @@ with tab_branch:
         branch_groups.setdefault(b, []).append(c)
 
     if not branch_groups:
-        st.info("No commission data for this period.")
+        st.info(t("No commission data for this period."))
     else:
         # Summary table
         br_rows = []
@@ -500,25 +501,25 @@ with tab_branch:
             b_final  = sum(c['final_commission'] for c in persons)
             ach = (b_sales / b_target * 100) if b_target else 0
             br_rows.append({
-                "Branch":           br_name,
-                "Salespersons":     len(persons),
-                "Total Sales":      f"SAR {b_sales:,.0f}",
-                "Target":           f"SAR {b_target:,.0f}",
-                "Achievement":      f"{ach:.1f}%",
-                "Final Commission": f"SAR {b_final:,.0f}",
+                t("Branch"):           br_name,
+                t("Salespersons"):     len(persons),
+                t("Total Sales"):      f"SAR {b_sales:,.0f}",
+                t("Target"):           f"SAR {b_target:,.0f}",
+                t("Achievement"):      f"{ach:.1f}%",
+                t("Final Commission"): f"SAR {b_final:,.0f}",
             })
         st.dataframe(pd.DataFrame(br_rows), use_container_width=True, hide_index=True)
         st.markdown("---")
 
         # Per-branch download
-        sel_br = st.selectbox("Select branch to download", list(branch_groups.keys()),
+        sel_br = st.selectbox(t("Select branch to download"), list(branch_groups.keys()),
                               key="rep_br_sel")
         if sel_br:
             br_persons = branch_groups[sel_br]
             col_a, col_b = st.columns(2)
             with col_a:
                 st.download_button(
-                    label=f"Download {sel_br} — Excel",
+                    label=t("Download {branch} — Excel").format(branch=sel_br),
                     data=make_excel_branch(sel_br, br_persons),
                     file_name=f"{sel_br}_{period_label.replace(' ','_')}_Branch.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -527,7 +528,7 @@ with tab_branch:
 
         # All-branches download button
         st.download_button(
-            label="Download All Branches (one file)",
+            label=t("Download All Branches (one file)"),
             data=make_excel_company(),
             file_name=f"AllBranches_{period_label.replace(' ','_')}_Report.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -539,13 +540,13 @@ with tab_branch:
 # SALESPERSON REPORT
 # ────────────────────────────────────────────────────────────────────────────
 with tab_person:
-    st.markdown(f"### Salesperson Reports — {period_label}")
+    st.markdown(f"### {t('Salesperson Reports')} — {period_label}")
 
     if not commissions:
-        st.info("No commission data for this period.")
+        st.info(t("No commission data for this period."))
     else:
         sp_names    = [c['salesperson_name'] for c in commissions]
-        selected_sp = st.selectbox("Select Salesperson", sp_names, key="rep_sp_sel")
+        selected_sp = st.selectbox(t("Select Salesperson"), sp_names, key="rep_sp_sel")
         sel_c       = next((c for c in commissions if c['salesperson_name'] == selected_sp), None)
 
         if sel_c:
@@ -554,16 +555,16 @@ with tab_person:
                 f"{sel_c['branch_name']} | {sel_c['tier_name']}"
             )
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Total Sales",     f"SAR {sel_c['total_actual']:,.0f}")
-            m2.metric("Achievement",     f"{sel_c['achievement']:.1f}%")
-            m3.metric("Base Comm.",      f"SAR {sel_c['base_commission']:,.0f}")
-            m4.metric("Final Comm.",     f"SAR {sel_c['final_commission']:,.0f}")
+            m1.metric(t("Total Sales"),     f"SAR {sel_c['total_actual']:,.0f}")
+            m2.metric(t("Achievement"),     f"{sel_c['achievement']:.1f}%")
+            m3.metric(t("Base Comm."),      f"SAR {sel_c['base_commission']:,.0f}")
+            m4.metric(t("Final Comm."),     f"SAR {sel_c['final_commission']:,.0f}")
 
             st.markdown("---")
             col_xl, col_pdf = st.columns(2)
             with col_xl:
                 st.download_button(
-                    label="Download Excel",
+                    label=t("Download Excel"),
                     data=make_excel_salesperson(sel_c),
                     file_name=f"{selected_sp.replace(' ','_')}_{period_label.replace(' ','_')}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -571,7 +572,7 @@ with tab_person:
                 )
             with col_pdf:
                 st.download_button(
-                    label="Download PDF",
+                    label=t("Download PDF"),
                     data=make_pdf_salesperson(sel_c),
                     file_name=f"{selected_sp.replace(' ','_')}_{period_label.replace(' ','_')}.pdf",
                     mime="application/pdf",
@@ -579,13 +580,13 @@ with tab_person:
                 )
 
         st.divider()
-        st.markdown("#### All Salespersons Quick View")
+        st.markdown(f"#### {t('All Salespersons Quick View')}")
         quick_rows = [{
-            "Name":       c['salesperson_name'],
-            "Branch":     c['branch_name'],
-            "Sales":      f"SAR {c['total_actual']:,.0f}",
-            "Achievement":f"{c['achievement']:.1f}%",
-            "Final Comm.":f"SAR {c['final_commission']:,.0f}",
+            t("Name"):        c['salesperson_name'],
+            t("Branch"):      c['branch_name'],
+            t("Sales"):       f"SAR {c['total_actual']:,.0f}",
+            t("Achievement"): f"{c['achievement']:.1f}%",
+            t("Final Comm."): f"SAR {c['final_commission']:,.0f}",
         } for c in sorted(commissions, key=lambda x: x['final_commission'], reverse=True)]
         st.dataframe(pd.DataFrame(quick_rows), use_container_width=True, hide_index=True)
 

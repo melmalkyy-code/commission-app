@@ -10,6 +10,7 @@ from src.models import (get_setting, get_salespersons, get_categories,
                          get_tier_target, log_action)
 from src.calculations import calc_all_commissions, get_totals
 from src.ui import inject_css, page_header, sidebar_logo
+from src.i18n import t, q_label
 
 PRIMARY = get_setting('primary_color', '#354f61')
 ACCENT  = get_setting('accent_color', '#f6ba3b')
@@ -18,16 +19,16 @@ COMPANY = get_setting('company_name', 'Surveying Experts')
 st.set_page_config(page_title="Sales Input — Surveying Experts", layout="wide")
 inject_css(PRIMARY)
 sidebar_logo(COMPANY, PRIMARY)
-page_header("Sales Input", "Enter actual sales amounts (SAR) for each salesperson", PRIMARY)
+page_header(t("Sales Input"), t("Enter actual sales amounts (SAR) for each salesperson"), PRIMARY)
 
 col1, col2 = st.columns([1, 1])
-year    = col1.selectbox("Year",    [2024, 2025, 2026, 2027], index=2)
-quarter = col2.selectbox("Quarter", [1, 2, 3, 4],             index=1,
-                          format_func=lambda q: f"Q{q}")
+year    = col1.selectbox(t("Year"),    [2024, 2025, 2026, 2027], index=2)
+quarter = col2.selectbox(t("Quarter"), [1, 2, 3, 4],             index=1,
+                          format_func=q_label)
 period  = get_or_create_period(year, quarter)
 
 if period.get('is_locked'):
-    st.warning("This quarter is locked. Contact your manager to unlock it in Settings.")
+    st.warning(t("This quarter is locked. Contact your manager to unlock it in Settings."))
     st.stop()
 
 st.divider()
@@ -39,19 +40,19 @@ sales_map   = {(r['salesperson_id'], r['category_id']): float(r['actual_sales'] 
                for r in all_sales}
 
 if not salespeople:
-    st.info("No active salespersons found. Please add salespersons in Settings first.")
+    st.info(t("No active salespersons found. Please add salespersons in Settings first."))
     st.stop()
 if not categories:
-    st.info("No active categories found. Please configure categories in Settings first.")
+    st.info(t("No active categories found. Please configure categories in Settings first."))
     st.stop()
 
 # Build editable dataframe — use `or ''` to convert SQL NULL to empty string
 rows = []
 for sp in salespeople:
     row = {
-        'Salesperson': sp['name'],
-        'Branch':      sp.get('branch_name') or '',
-        'Tier':        sp.get('tier_name') or '',
+        t('Salesperson'): sp['name'],
+        t('Branch'):      sp.get('branch_name') or '',
+        t('Tier'):        sp.get('tier_name') or '',
         '_sp_id':      sp['id'],
         '_tier_id':    sp.get('tier_id'),
     }
@@ -61,16 +62,16 @@ for sp in salespeople:
     rows.append(row)
 
 df           = pd.DataFrame(rows)
-display_cols = ['Salesperson', 'Branch', 'Tier'] + [c['name'] for c in categories]
+display_cols = [t('Salesperson'), t('Branch'), t('Tier')] + [c['name'] for c in categories]
 editable_df  = df[display_cols].copy()
 
-st.markdown("**Enter actual sales amounts (SAR) for each salesperson:**")
-st.caption("Changes are saved automatically as you edit each cell.")
+st.markdown(f"**{t('Enter actual sales amounts (SAR) for each salesperson:')}**")
+st.caption(t("Changes are saved automatically as you edit each cell."))
 
 edited = st.data_editor(
     editable_df,
     use_container_width=True,
-    disabled=['Salesperson', 'Branch', 'Tier'],
+    disabled=[t('Salesperson'), t('Branch'), t('Tier')],
     num_rows="fixed",
     column_config={
         cat['name']: st.column_config.NumberColumn(
@@ -108,12 +109,12 @@ def _auto_save_sales():
             save_sale(period['id'], sp_id, cat_id, val)
         st.cache_data.clear()
         log_action("SALES_AUTO_SAVE", "sales_records", notes=f"Q{quarter} {year}")
-        st.toast("Changes saved", icon="✅")
+        st.toast(t("Changes saved"), icon="✅")
 
 _auto_save_sales()
 
 # Manual save button as explicit confirmation / fallback
-if st.button("Save All Changes", type="primary"):
+if st.button(t("Save All Changes"), type="primary"):
     for idx, (_, row) in enumerate(edited.iterrows()):
         if idx >= len(salespeople):
             break
@@ -122,38 +123,38 @@ if st.button("Save All Changes", type="primary"):
             save_sale(period['id'], sp['id'], cat['id'], _read_row_val(row, cat['name']))
     log_action("SALES_SAVE_ALL", "sales_records", notes=f"Q{quarter} {year}")
     st.cache_data.clear()
-    st.success(f"Saved all sales records for Q{quarter} {year}.")
+    st.success(t("Saved all sales records for Q{quarter} {year}.").format(quarter=quarter, year=year))
     st.rerun()
 
 # ── Live commission preview ───────────────────────────────────────────────────
 st.divider()
-st.markdown("#### Live Commission Preview")
-with st.spinner("Calculating..."):
+st.markdown(f"#### {t('Live Commission Preview')}")
+with st.spinner(t("Calculating...")):
     commissions = calc_all_commissions(period['id'])
     totals      = get_totals(commissions)
 
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("Total Sales",      f"SAR {totals['total_sales']:,.0f}")
-c2.metric("Total Target",     f"SAR {totals['total_target']:,.0f}")
-c3.metric("Achievement",      f"{totals['achievement']:.1f}%")
-c4.metric("Final Commission", f"SAR {totals['total_final']:,.0f}")
+c1.metric(t("Total Sales"),      f"SAR {totals['total_sales']:,.0f}")
+c2.metric(t("Total Target"),     f"SAR {totals['total_target']:,.0f}")
+c3.metric(t("Achievement"),      f"{totals['achievement']:.1f}%")
+c4.metric(t("Final Commission"), f"SAR {totals['total_final']:,.0f}")
 
 preview_rows = [{
-    "Salesperson":  c['salesperson_name'],
-    "Branch":       c['branch_name'] or '',
-    "Total Sales":  f"SAR {c['total_actual']:,.0f}",
-    "Target":       f"SAR {c['total_target']:,.0f}",
-    "Achievement":  f"{c['achievement']:.1f}%",
-    "Base Comm.":   f"SAR {c['base_commission']:,.0f}",
-    "KPI Mult.":    f"x {c['kpi_multiplier']}",
-    "Final Comm.":  f"SAR {c['final_commission']:,.0f}",
+    t("Salesperson"):  c['salesperson_name'],
+    t("Branch"):       c['branch_name'] or '',
+    t("Total Sales"):  f"SAR {c['total_actual']:,.0f}",
+    t("Target"):       f"SAR {c['total_target']:,.0f}",
+    t("Achievement"):  f"{c['achievement']:.1f}%",
+    t("Base Comm."):   f"SAR {c['base_commission']:,.0f}",
+    t("KPI Mult."):    f"x {c['kpi_multiplier']}",
+    t("Final Comm."):  f"SAR {c['final_commission']:,.0f}",
 } for c in commissions]
 
 st.dataframe(pd.DataFrame(preview_rows), use_container_width=True, hide_index=True)
 
 # ── Import / Export ────────────────────────────────────────────────────────────
 st.divider()
-with st.expander("Import from Excel / Download Template"):
+with st.expander(t("Import from Excel / Download Template")):
     import io
     from openpyxl import Workbook
     from openpyxl.styles import PatternFill, Font
@@ -173,12 +174,12 @@ with st.expander("Import from Excel / Download Template"):
     buf = io.BytesIO()
     wb.save(buf)
     st.download_button(
-        "Download Import Template", buf.getvalue(),
+        t("Download Import Template"), buf.getvalue(),
         file_name=f"Sales_Template_Q{quarter}_{year}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
-    uploaded = st.file_uploader("Upload filled template:", type=['xlsx'])
+    uploaded = st.file_uploader(t("Upload filled template:"), type=['xlsx'])
     if uploaded:
         import openpyxl
         wb2 = openpyxl.load_workbook(uploaded)
@@ -207,7 +208,7 @@ with st.expander("Import from Excel / Download Template"):
         if errors:
             st.warning("\n".join(errors[:5]))
         st.cache_data.clear()
-        st.success(f"Imported {count} records.")
+        st.success(t("Imported {count} records.").format(count=count))
         st.rerun()
 
 logout_button()

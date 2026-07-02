@@ -3,9 +3,11 @@ SE Design System CSS injection for Streamlit.
 Call inject_css() once at the top of every page (after set_page_config).
 """
 import streamlit as st
+from src.i18n import lang_switcher, t, is_rtl
 
 
-_FONT = "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+_FONT    = "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+_FONT_AR = "https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700&display=swap"
 
 _CSS = """
 @import url('{font}');
@@ -251,12 +253,35 @@ footer {{ visibility: hidden; }}
 """
 
 
+_RTL_CSS = """
+@import url('{font_ar}');
+/* Arabic RTL overrides */
+html, body, .main, .main .block-container,
+.main [data-testid="stVerticalBlock"],
+.main [data-testid="stHorizontalBlock"] > div {{
+  direction: rtl !important;
+  text-align: right !important;
+}}
+html, body, [class*="css"], .stApp {{
+  font-family: 'Cairo', system-ui, sans-serif !important;
+}}
+h1, h2, h3, h4, h5, h6 {{
+  font-family: 'Cairo', system-ui, sans-serif !important;
+}}
+/* Keep sidebar LTR so navigation stays readable */
+[data-testid="stSidebar"] * {{
+  direction: ltr !important;
+  text-align: left !important;
+}}
+"""
+
+
 def inject_css(primary: str = "#354f61") -> None:
     """Inject SE design system CSS. Call once per page after set_page_config."""
-    st.markdown(
-        f"<style>{_CSS.format(font=_FONT)}</style>",
-        unsafe_allow_html=True,
-    )
+    css = f"<style>{_CSS.format(font=_FONT)}</style>"
+    if is_rtl():
+        css += f"<style>{_RTL_CSS.format(font_ar=_FONT_AR)}</style>"
+    st.markdown(css, unsafe_allow_html=True)
 
 
 def page_header(title: str, subtitle: str = "", primary: str = "#354f61") -> None:
@@ -273,7 +298,7 @@ def page_header(title: str, subtitle: str = "", primary: str = "#354f61") -> Non
 
 
 def sidebar_logo(company: str = "Surveying Experts", primary: str = "#354f61") -> None:
-    """Render SE logo block in the sidebar."""
+    """Render SE logo block + language switcher in the sidebar."""
     st.sidebar.markdown(
         f"<div style='padding:18px 0 14px;text-align:center;border-bottom:"
         f"1px solid rgba(255,255,255,0.1);margin-bottom:8px'>"
@@ -282,10 +307,11 @@ def sidebar_logo(company: str = "Surveying Experts", primary: str = "#354f61") -
         f"<span style='font-size:18px;color:#1a2b38'>+</span></div>"
         f"<div style='font-size:14px;font-weight:700;color:#fff;line-height:1.2'>{company}</div>"
         f"<div style='font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px'>"
-        f"Commission Manager</div>"
+        f"{t('Commission Manager')}</div>"
         f"</div>",
         unsafe_allow_html=True,
     )
+    lang_switcher()
 
 
 def period_selector(suffix: str = "") -> tuple[int, int, dict]:

@@ -6,6 +6,7 @@ import uuid
 import datetime
 import streamlit as st
 from src.db import fetchone, fetchall, execute
+from src.i18n import t, lang_switcher, get_lang, _LANG_KEY
 
 
 # ── Password hashing (PBKDF2-SHA256) ─────────────────────────────────────────
@@ -162,24 +163,36 @@ def _show_login():
     <div class="login-wrap">
       <div class="login-header">
         <p style="font-size:22px;font-weight:700;margin:0;">{company}</p>
-        <p style="font-size:13px;opacity:0.75;margin:6px 0 0;">Commission Manager &mdash; Sign In</p>
+        <p style="font-size:13px;opacity:0.75;margin:6px 0 0;">{t('Commission Manager — Sign In')}</p>
       </div>
       <div class="login-body"></div>
     </div>
     """, unsafe_allow_html=True)
 
+    # Language switcher on login page
+    lang_col1, lang_col2, _ = st.columns([1, 1, 4])
+    _lang = get_lang()
+    with lang_col1:
+        if st.button("🌐 EN", type="primary" if _lang == 'en' else "secondary", key="_login_lang_en"):
+            st.session_state[_LANG_KEY] = 'en'
+            st.rerun()
+    with lang_col2:
+        if st.button("🌐 عربي", type="primary" if _lang == 'ar' else "secondary", key="_login_lang_ar"):
+            st.session_state[_LANG_KEY] = 'ar'
+            st.rerun()
+
     _, col, _ = st.columns([1, 2, 1])
     with col:
         with st.form("login_form", clear_on_submit=False):
-            username = st.text_input("Username", placeholder="Enter username")
-            password = st.text_input("Password", type="password", placeholder="Enter password")
+            username = st.text_input(t("Username"), placeholder=t("Enter username"))
+            password = st.text_input(t("Password"), type="password", placeholder=t("Enter password"))
             submitted = st.form_submit_button(
-                "Sign In", type="primary", use_container_width=True
+                t("Sign In"), type="primary", use_container_width=True
             )
 
         if submitted:
             if not username or not password:
-                st.error("Please enter both username and password.")
+                st.error(t("Please enter both username and password."))
                 return
             user = get_user(username.strip().lower())
             if user and user['is_active'] and verify_password(password, user['password_hash']):
@@ -194,7 +207,7 @@ def _show_login():
                 _set_auth_cookie(token)
                 st.rerun()
             else:
-                st.error("Invalid username or password.")
+                st.error(t("Invalid username or password."))
 
 
 # ── Core auth gate ────────────────────────────────────────────────────────────
@@ -234,9 +247,9 @@ def require_login() -> None:
 # ── Logout ────────────────────────────────────────────────────────────────────
 def logout_button(sidebar: bool = True) -> None:
     container = st.sidebar if sidebar else st
-    name = st.session_state.get('full_name', 'User')
+    name = st.session_state.get('full_name', t('User'))
     container.markdown(f"**{name}**")
-    if container.button("Sign Out", key="_logout_btn"):
+    if container.button(t("Sign Out"), key="_logout_btn"):
         token = st.session_state.get('auth_token', '')
         if token:
             _revoke_session(token)
@@ -253,5 +266,5 @@ def is_admin() -> bool:
 def require_admin() -> None:
     """Stop execution with an access-denied message if the user is not an admin."""
     if not is_admin():
-        st.error("⛔ Access denied. Settings are only available to administrators.")
+        st.error(t("⛔ Access denied. Settings are only available to administrators."))
         st.stop()
