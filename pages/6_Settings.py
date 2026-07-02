@@ -2,9 +2,10 @@ import sys, os; sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..')
 import streamlit as st
 import pandas as pd
 from src.startup import init_db
-from src.auth import require_login, logout_button
+from src.auth import require_login, logout_button, require_admin
 init_db()
 require_login()
+require_admin()
 from src.models import (
     get_setting, set_setting,
     get_branches, add_branch, update_branch, delete_branch,

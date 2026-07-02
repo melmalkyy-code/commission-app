@@ -248,3 +248,10 @@ def logout_button(sidebar: bool = True) -> None:
 
 def is_admin() -> bool:
     return st.session_state.get('role') == 'admin'
+
+
+def require_admin() -> None:
+    """Stop execution with an access-denied message if the user is not an admin."""
+    if not is_admin():
+        st.error("⛔ Access denied. Settings are only available to administrators.")
+        st.stop()
