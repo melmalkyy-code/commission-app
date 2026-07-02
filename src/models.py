@@ -2,7 +2,7 @@
 """All data models for the web app."""
 from typing import Optional
 import streamlit as st
-from src.db import execute, fetchall, fetchone
+from src.db import execute, fetchall, fetchone, execute_insert
 
 
 # â”€â”€ Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -178,9 +178,10 @@ def get_kpi_items(active_only=False) -> list[dict]:
 
 
 def add_kpi_item(name: str, weight: float, max_score: float, sort_order: int = 0) -> int:
-    cur = execute("INSERT INTO kpi_items (name, weight, max_score, sort_order) VALUES (%s,%s,%s,%s) RETURNING id",
-                  (name, weight, max_score, sort_order))
-    return cur.fetchone()[0]
+    return execute_insert(
+        "INSERT INTO kpi_items (name, weight, max_score, sort_order) VALUES (%s,%s,%s,%s)",
+        (name, weight, max_score, sort_order),
+    )
 
 
 def delete_kpi_item(item_id: int):
@@ -215,9 +216,10 @@ def get_multiplier_rules(active_only=True) -> list[dict]:
 
 
 def add_multiplier_rule(score_from: float, score_to: Optional[float], multiplier: float, unlimited: bool, sort_order: int = 0) -> int:
-    cur = execute("INSERT INTO kpi_multiplier_rules (score_from, score_to, multiplier, is_unlimited, sort_order) VALUES (%s,%s,%s,%s,%s) RETURNING id",
-                  (score_from, score_to, multiplier, int(unlimited), sort_order))
-    return cur.fetchone()[0]
+    return execute_insert(
+        "INSERT INTO kpi_multiplier_rules (score_from, score_to, multiplier, is_unlimited, sort_order) VALUES (%s,%s,%s,%s,%s)",
+        (score_from, score_to, multiplier, int(unlimited), sort_order),
+    )
 
 
 def delete_multiplier_rule(rule_id: int):

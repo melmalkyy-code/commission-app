@@ -171,13 +171,16 @@ def fetchall(sql: str, params: tuple = ()) -> list:
         cur.execute(adapted, params)
         rows = cur.fetchall()
         if is_pg:
-            cols = [d[0] for d in cur.description]
-            return [dict(zip(cols, row)) for row in rows]
-        try:
-            return [dict(row) for row in rows]
-        except Exception:
-            cols = [d[0] for d in cur.description]
-            return [dict(zip(cols, row)) for row in rows]
+            cols   = [d[0] for d in cur.description]
+            result = [dict(zip(cols, row)) for row in rows]
+        else:
+            try:
+                result = [dict(row) for row in rows]
+            except Exception:
+                cols   = [d[0] for d in cur.description]
+                result = [dict(zip(cols, row)) for row in rows]
+        cur.close()   # release the statement so conn.commit() can proceed
+        return result
     except Exception:
         if not is_pg:
             raise
@@ -187,10 +190,12 @@ def fetchall(sql: str, params: tuple = ()) -> list:
         cur2.execute(adapted2, params)
         rows2    = cur2.fetchall()
         try:
-            return [dict(row) for row in rows2]
+            result = [dict(row) for row in rows2]
         except Exception:
-            cols = [d[0] for d in cur2.description]
-            return [dict(zip(cols, row)) for row in rows2]
+            cols   = [d[0] for d in cur2.description]
+            result = [dict(zip(cols, row)) for row in rows2]
+        cur2.close()
+        return result
 
 
 def fetchone(sql: str, params: tuple = ()) -> dict | None:
@@ -201,6 +206,16 @@ def fetchone(sql: str, params: tuple = ()) -> dict | None:
 def lastrowid(cur) -> int:
     if getattr(_local, 'is_pg', False):
         return cur.fetchone()[0] if cur.rowcount else None
+    return cur.lastrowid
+
+
+def execute_insert(sql: str, params: tuple = ()) -> int:
+    """Execute an INSERT and return the new row's id. Works on PostgreSQL and SQLite."""
+    is_pg = getattr(_local, 'is_pg', False)
+    if is_pg:
+        cur = execute(sql + " RETURNING id", params)
+        return cur.fetchone()[0]
+    cur = execute(sql, params)
     return cur.lastrowid
 
 
