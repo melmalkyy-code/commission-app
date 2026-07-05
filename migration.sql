@@ -13,10 +13,19 @@ CREATE TABLE IF NOT EXISTS settings (
 CREATE TABLE IF NOT EXISTS branches (
     id         SERIAL PRIMARY KEY,
     name       TEXT NOT NULL UNIQUE,
-    city       TEXT,
+    region     TEXT,
     is_active  INTEGER DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Migration guard: rename city -> region on databases created before the rename
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name='branches' AND column_name='city') THEN
+        ALTER TABLE branches RENAME COLUMN city TO region;
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS categories (
     id                    SERIAL PRIMARY KEY,
@@ -70,13 +79,17 @@ CREATE TABLE IF NOT EXISTS commission_calc_settings (
 );
 
 CREATE TABLE IF NOT EXISTS kpi_items (
-    id          SERIAL PRIMARY KEY,
-    name        TEXT NOT NULL,
-    weight      REAL DEFAULT 0,
-    max_score   REAL DEFAULT 100,
-    is_active   INTEGER DEFAULT 1,
-    sort_order  INTEGER DEFAULT 0
+    id                 SERIAL PRIMARY KEY,
+    name               TEXT NOT NULL,
+    weight             REAL DEFAULT 0,
+    max_score          REAL DEFAULT 100,
+    is_active          INTEGER DEFAULT 1,
+    sort_order         INTEGER DEFAULT 0,
+    linked_category_id INTEGER REFERENCES categories(id)
 );
+
+-- Migration guard: add linked_category_id on databases created before it existed
+ALTER TABLE kpi_items ADD COLUMN IF NOT EXISTS linked_category_id INTEGER REFERENCES categories(id);
 
 CREATE TABLE IF NOT EXISTS kpi_multiplier_rules (
     id           SERIAL PRIMARY KEY,
@@ -152,6 +165,16 @@ CREATE TABLE IF NOT EXISTS app_users (
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Cookie-based auth sessions — token is a UUID4 string
+CREATE TABLE IF NOT EXISTS sessions (
+    token      TEXT PRIMARY KEY,
+    user_id    INTEGER NOT NULL,
+    username   TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    is_active  INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 
 -- ── SEED DATA ─────────────────────────────────────────────────
 
@@ -202,27 +225,33 @@ JOIN categories   c ON c.name = v.cat_name
 ON CONFLICT (tier_id, category_id) DO NOTHING;
 
 -- Branches
-INSERT INTO branches (name, city) VALUES
-  ('Riyadh', 'Riyadh'),
-  ('Jeddah', 'Jeddah'),
-  ('Dammam', 'Dammam')
+INSERT INTO branches (name, region) VALUES
+  ('Riyadh', 'Central Region'),
+  ('Jeddah', 'Western Region'),
+  ('Dammam', 'Eastern Region')
 ON CONFLICT (name) DO NOTHING;
 
--- KPI Items
-INSERT INTO kpi_items (name, weight, max_score, sort_order) VALUES
+-- KPI Items (name has no UNIQUE constraint — guard against duplicate seeding)
+INSERT INTO kpi_items (name, weight, max_score, sort_order)
+SELECT v.name, v.weight, v.max_score, v.sort FROM (VALUES
   ('Exam Score',                      20.0, 100, 0),
   ('Branch Manager Evaluation',       25.0, 100, 1),
   ('Overall Target Achievement',      30.0, 100, 2),
   ('New Product Target Achievement',  15.0, 100, 3),
-  ('Rental Collection Achievement',   10.0, 100, 4);
+  ('Rental Collection Achievement',   10.0, 100, 4)
+) AS v(name, weight, max_score, sort)
+WHERE NOT EXISTS (SELECT 1 FROM kpi_items k WHERE k.name = v.name);
 
--- KPI Multiplier Rules
-INSERT INTO kpi_multiplier_rules (score_from, score_to, multiplier, is_unlimited, sort_order) VALUES
+-- KPI Multiplier Rules (only seed when the table is empty)
+INSERT INTO kpi_multiplier_rules (score_from, score_to, multiplier, is_unlimited, sort_order)
+SELECT v.frm, v.to_v, v.mult, v.unlim, v.sort FROM (VALUES
   (0,   69,   0.7, 0, 0),
   (70,  79,   0.8, 0, 1),
   (80,  89,   0.9, 0, 2),
   (90,  99,   1.0, 0, 3),
-  (100, NULL, 1.2, 1, 4);
+  (100, NULL, 1.2, 1, 4)
+) AS v(frm, to_v, mult, unlim, sort)
+WHERE NOT EXISTS (SELECT 1 FROM kpi_multiplier_rules);
 
 -- Commission Brackets (using subqueries)
 INSERT INTO commission_brackets (category_id, from_amount, to_amount, commission_rate, is_unlimited, sort_order)
@@ -248,7 +277,8 @@ SELECT c.id, v.frm, v.to_amt, v.rate, v.unlimited, v.sort FROM (VALUES
   ('High Solutions',150000,  300000,  2.5, 0, 2),
   ('High Solutions',300000,  NULL,    3.5, 1, 3)
 ) AS v(cat_name, frm, to_amt, rate, unlimited, sort)
-JOIN categories c ON c.name = v.cat_name;
+JOIN categories c ON c.name = v.cat_name
+WHERE NOT EXISTS (SELECT 1 FROM commission_brackets);
 
 -- Salespersons
 INSERT INTO salespersons (name, branch_id, tier_id)

@@ -419,6 +419,14 @@ def sidebar_nav() -> None:
 
 def sidebar_logo(company: str = "Surveying Experts", primary: str = "#354f61") -> None:
     """Render SE logo block + language switcher + navigation in the sidebar."""
+    from src.db import db_status
+    status = db_status()
+    if status['ok'] and status['backend'] == 'postgresql':
+        dot, badge_color, badge_text = "●", "#4caf7d", t("Cloud database")
+    elif status['ok']:
+        dot, badge_color, badge_text = "●", "#f6ba3b", t("Local database (dev only)")
+    else:
+        dot, badge_color, badge_text = "●", "#e05d5d", t("Database unreachable")
     st.sidebar.markdown(
         f"<div style='padding:14px 0 14px;text-align:center;border-bottom:"
         f"1px solid rgba(255,255,255,0.1);margin-bottom:8px'>"
@@ -426,9 +434,13 @@ def sidebar_logo(company: str = "Surveying Experts", primary: str = "#354f61") -
         f"<div style='font-size:14px;font-weight:700;color:#fff;line-height:1.2'>{company}</div>"
         f"<div style='font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px'>"
         f"{t('Commission Manager')}</div>"
+        f"<div style='font-size:9px;margin-top:6px;color:{badge_color}'>"
+        f"{dot} {badge_text}</div>"
         f"</div>",
         unsafe_allow_html=True,
     )
+    if not status['ok']:
+        st.sidebar.error(t("Changes will NOT be saved — database connection failed."))
     lang_switcher()
     sidebar_nav()
     # Logout always rendered here so it appears on every page without per-page calls

@@ -25,6 +25,10 @@ _AR: dict[str, str] = {
     "Sign Out":             "تسجيل خروج",
     "Sign In":              "تسجيل الدخول",
     "Commission Manager":   "مدير العمولات",
+    "Cloud database":       "قاعدة بيانات سحابية",
+    "Local database (dev only)": "قاعدة بيانات محلية (تطوير فقط)",
+    "Database unreachable": "تعذر الاتصال بقاعدة البيانات",
+    "Changes will NOT be saved — database connection failed.": "لن يتم حفظ التغييرات — فشل الاتصال بقاعدة البيانات.",
 
     # ── General ───────────────────────────────────────────────────────────────
     "Year":             "العام",
