@@ -108,31 +108,59 @@ def _revoke_session(token: str):
         execute("UPDATE sessions SET is_active=0 WHERE token=%s", (token,))
 
 
+def _cookie_controller():
+    """Construct a fresh CookieController for the current run, or None if the
+    component isn't installed.
+
+    A real bidirectional component (served same-origin) is required to write a
+    cookie that survives a full page refresh. `components.html` runs in a
+    sandboxed srcDoc iframe with an opaque origin, so cookies set there never
+    reach the app domain and are lost on refresh — that was the logout bug.
+
+    Constructed fresh each call, never cached across runs: it is only ever
+    used by _set_auth_cookie (login) and _clear_auth_cookie (logout), which
+    never run together, so there is at most one construction per script run.
+    """
+    try:
+        from streamlit_cookies_controller import CookieController
+        return CookieController(key='se_auth_cookie_ctrl')
+    except Exception:
+        return None
+
+
 def _set_auth_cookie(token: str):
-    """Inject JS to set the auth cookie in the browser."""
-    import streamlit.components.v1 as components
-    max_age = _SESSION_DAYS * 86400
-    components.html(
-        f"""<script>
-        document.cookie = "{_COOKIE_NAME}={token}; max-age={max_age}; path=/; SameSite=Strict";
-        </script>""",
-        height=0,
-    )
+    """Persist the auth cookie on the real app domain so it survives refresh."""
+    ctrl = _cookie_controller()
+    if ctrl is None:
+        return
+    expires = datetime.datetime.now() + datetime.timedelta(days=_SESSION_DAYS)
+    try:
+        ctrl.set(_COOKIE_NAME, token, expires=expires, path='/', same_site='strict')
+    except Exception:
+        try:
+            ctrl.set(_COOKIE_NAME, token)
+        except Exception:
+            pass
 
 
 def _clear_auth_cookie():
-    """Inject JS to delete the auth cookie from the browser."""
-    import streamlit.components.v1 as components
-    components.html(
-        f"""<script>
-        document.cookie = "{_COOKIE_NAME}=; max-age=0; path=/; SameSite=Strict";
-        </script>""",
-        height=0,
-    )
+    """Delete the auth cookie from the browser."""
+    ctrl = _cookie_controller()
+    if ctrl is None:
+        return
+    try:
+        ctrl.remove(_COOKIE_NAME)
+    except Exception:
+        pass
 
 
 def _read_auth_cookie() -> str:
-    """Read the auth cookie from the browser request (requires Streamlit >= 1.37)."""
+    """Read the auth cookie sent by the browser on the current request.
+
+    On a full refresh the browser includes the cookie in the HTTP request, so
+    the server-side st.context.cookies reads it reliably with no async round
+    trip and no extra component in the widget tree.
+    """
     try:
         return st.context.cookies.get(_COOKIE_NAME) or ""
     except Exception:
@@ -310,6 +338,11 @@ def _show_login():
                 'auth_token':    token,
             })
             _set_auth_cookie(token)
+            # Give the cookie component a moment to flush the write to the
+            # browser before the rerun tears down this run — otherwise the
+            # cookie is lost and the next refresh logs the user out again.
+            import time
+            time.sleep(0.4)
             st.rerun()
         else:
             st.error(t("Invalid username or password."))
