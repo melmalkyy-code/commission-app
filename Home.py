@@ -145,7 +145,7 @@ with tab_co:
                 plot_bgcolor='white', paper_bgcolor='white',
                 font=dict(family='IBM Plex Sans, system-ui, sans-serif', size=12),
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="chart_company_main")
 
         with col_r:
             st.markdown(f"#### {t('Achievement Ranking')}")
@@ -167,7 +167,7 @@ with tab_co:
                 plot_bgcolor='white', paper_bgcolor='white',
                 font=dict(family='IBM Plex Sans, system-ui, sans-serif', size=12),
             )
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, use_container_width=True, key="chart_company_ranking")
 
         col_top, col_pie = st.columns([2, 3])
         with col_top:
@@ -200,7 +200,7 @@ with tab_co:
                 fig3.update_layout(height=280, margin=dict(l=0, r=0, t=0, b=0),
                                    showlegend=False,
                                    font=dict(family='IBM Plex Sans, system-ui, sans-serif'))
-                st.plotly_chart(fig3, use_container_width=True)
+                st.plotly_chart(fig3, use_container_width=True, key="chart_company_pie")
 
 
 # ════════════════════ BY REGION ══════════════════════════════════════════════
@@ -268,7 +268,7 @@ with tab_re:
             plot_bgcolor='white', paper_bgcolor='white',
             font=dict(family='IBM Plex Sans, system-ui, sans-serif', size=12),
         )
-        st.plotly_chart(fig_re, use_container_width=True)
+        st.plotly_chart(fig_re, use_container_width=True, key="chart_region_bar")
 
         re_table = []
         for rname, rv in region_map.items():
@@ -350,7 +350,7 @@ with tab_br:
             plot_bgcolor='white', paper_bgcolor='white',
             font=dict(family='IBM Plex Sans, system-ui, sans-serif', size=12),
         )
-        st.plotly_chart(fig_br, use_container_width=True)
+        st.plotly_chart(fig_br, use_container_width=True, key="chart_branch_bar")
 
         br_table = []
         for bname, bv in branch_map.items():
@@ -479,7 +479,7 @@ with tab_qoq:
             plot_bgcolor='white', paper_bgcolor='white',
             font=dict(family='IBM Plex Sans, system-ui, sans-serif', size=12),
         )
-        st.plotly_chart(fig_qoq, use_container_width=True)
+        st.plotly_chart(fig_qoq, use_container_width=True, key="chart_qoq_bar")
 
         # ── By salesperson ────────────────────────────────────────────────────
         st.markdown(f"#### {t('By Salesperson')}")
