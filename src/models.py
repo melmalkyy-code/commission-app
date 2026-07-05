@@ -24,20 +24,20 @@ def get_all_settings() -> dict:
 # â”€â”€ Branches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @st.cache_data(ttl=300)
 def get_branches(active_only=False) -> list[dict]:
-    sql = "SELECT id, name, city, is_active FROM branches"
+    sql = "SELECT id, name, region, is_active FROM branches"
     if active_only:
         sql += " WHERE is_active=1"
     return fetchall(sql + " ORDER BY name")
 
 
-def add_branch(name: str, city: str) -> int:
-    cur = execute("INSERT INTO branches (name, city) VALUES (%s, %s) RETURNING id", (name, city))
+def add_branch(name: str, region: str) -> int:
+    cur = execute("INSERT INTO branches (name, region) VALUES (%s, %s) RETURNING id", (name, region))
     row = cur.fetchone()
     return row[0] if row else None
 
 
-def update_branch(bid: int, name: str, city: str, is_active: bool):
-    execute("UPDATE branches SET name=%s, city=%s, is_active=%s WHERE id=%s", (name, city, int(is_active), bid))
+def update_branch(bid: int, name: str, region: str, is_active: bool):
+    execute("UPDATE branches SET name=%s, region=%s, is_active=%s WHERE id=%s", (name, region, int(is_active), bid))
 
 
 def delete_branch(bid: int):

@@ -151,6 +151,7 @@ def _show_login():
     font   = "'Cairo',system-ui,sans-serif" if rtl else "'IBM Plex Sans',system-ui,sans-serif"
     align  = 'right' if rtl else 'left'
 
+    from src.ui import _LOGO_SVG_LIGHT
     # Single st.html() call — CSS + header in one block to avoid rerun loops
     # (multiple st.html() elements each fire resize events that trigger reruns)
     st.html(f"""
@@ -223,12 +224,8 @@ def _show_login():
         direction: {dir_s} !important;
     }}
     </style>
-    <div style="text-align:center;padding:4px 0 24px;direction:{dir_s}">
-      <div style="display:inline-flex;align-items:center;justify-content:center;
-          width:56px;height:56px;background:{primary};border-radius:16px;
-          margin-bottom:16px;box-shadow:0 6px 20px rgba(53,79,97,0.30)">
-        <span style="font-size:28px;color:#fff;font-weight:700;line-height:1">+</span>
-      </div>
+    <div style="text-align:center;padding:4px 0 20px;direction:{dir_s}">
+      {_LOGO_SVG_LIGHT}
       <div style="font-size:24px;font-weight:700;color:#1a2b38;
           font-family:{font};letter-spacing:-0.02em;line-height:1.2">{company}</div>
       <div style="font-size:13px;color:#6b757d;margin-top:8px;font-family:{font}">

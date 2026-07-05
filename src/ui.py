@@ -9,6 +9,54 @@ from src.i18n import lang_switcher, t, is_rtl
 _FONT    = "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
 _FONT_AR = "https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700&display=swap"
 
+# SE logo SVG — white+gold version for dark backgrounds (sidebar, login card)
+_LOGO_SVG_DARK = (
+    "<svg width='48' height='48' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg' "
+    "style='display:block;margin:0 auto 8px'>"
+    # Compass points — white
+    "<polygon points='50,1 44,20 56,20' fill='white'/>"
+    "<polygon points='50,99 44,80 56,80' fill='white'/>"
+    "<polygon points='1,50 20,44 20,56' fill='white'/>"
+    "<polygon points='99,50 80,44 80,56' fill='white'/>"
+    # Ring — white stroke, dark fill so instrument reads on top
+    "<circle cx='50' cy='50' r='26' fill='#1a2b38' stroke='white' stroke-width='4'/>"
+    # Gold arcs — top-right and bottom-left quadrants
+    "<path d='M 50,24 A 26,26 0 0,1 76,50' fill='none' stroke='#f6ba3b' stroke-width='8'/>"
+    "<path d='M 50,76 A 26,26 0 0,1 24,50' fill='none' stroke='#f6ba3b' stroke-width='8'/>"
+    # Surveying instrument — body
+    "<rect x='43' y='34' width='14' height='12' rx='3' fill='white'/>"
+    # Lens aperture
+    "<circle cx='50' cy='40' r='3.5' fill='none' stroke='#1a2b38' stroke-width='1.5'/>"
+    # Tripod stem
+    "<line x1='50' y1='46' x2='50' y2='57' stroke='white' stroke-width='2.5'/>"
+    # Tripod legs
+    "<line x1='50' y1='55' x2='42' y2='64' stroke='white' stroke-width='2'/>"
+    "<line x1='50' y1='55' x2='58' y2='64' stroke='white' stroke-width='2'/>"
+    # Cross bar
+    "<line x1='43' y1='52' x2='57' y2='52' stroke='white' stroke-width='1.5'/>"
+    "</svg>"
+)
+
+# SE logo SVG — navy+gold version for light/white backgrounds
+_LOGO_SVG_LIGHT = (
+    "<svg width='56' height='56' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg' "
+    "style='display:block;margin:0 auto 12px'>"
+    "<polygon points='50,1 44,20 56,20' fill='#1a2b38'/>"
+    "<polygon points='50,99 44,80 56,80' fill='#1a2b38'/>"
+    "<polygon points='1,50 20,44 20,56' fill='#1a2b38'/>"
+    "<polygon points='99,50 80,44 80,56' fill='#1a2b38'/>"
+    "<circle cx='50' cy='50' r='26' fill='#1a2b38' stroke='#1a2b38' stroke-width='4'/>"
+    "<path d='M 50,24 A 26,26 0 0,1 76,50' fill='none' stroke='#f6ba3b' stroke-width='8'/>"
+    "<path d='M 50,76 A 26,26 0 0,1 24,50' fill='none' stroke='#f6ba3b' stroke-width='8'/>"
+    "<rect x='43' y='34' width='14' height='12' rx='3' fill='white'/>"
+    "<circle cx='50' cy='40' r='3.5' fill='none' stroke='#1a2b38' stroke-width='1.5'/>"
+    "<line x1='50' y1='46' x2='50' y2='57' stroke='white' stroke-width='2.5'/>"
+    "<line x1='50' y1='55' x2='42' y2='64' stroke='white' stroke-width='2'/>"
+    "<line x1='50' y1='55' x2='58' y2='64' stroke='white' stroke-width='2'/>"
+    "<line x1='43' y1='52' x2='57' y2='52' stroke='white' stroke-width='1.5'/>"
+    "</svg>"
+)
+
 _CSS = """
 @import url('{font}');
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700&display=swap');
@@ -361,11 +409,9 @@ def sidebar_nav() -> None:
 def sidebar_logo(company: str = "Surveying Experts", primary: str = "#354f61") -> None:
     """Render SE logo block + language switcher + navigation in the sidebar."""
     st.sidebar.markdown(
-        f"<div style='padding:18px 0 14px;text-align:center;border-bottom:"
+        f"<div style='padding:14px 0 14px;text-align:center;border-bottom:"
         f"1px solid rgba(255,255,255,0.1);margin-bottom:8px'>"
-        f"<div style='display:inline-flex;align-items:center;justify-content:center;"
-        f"width:36px;height:36px;background:#f6ba3b;border-radius:8px;margin-bottom:8px'>"
-        f"<span style='font-size:18px;color:#1a2b38'>+</span></div>"
+        f"{_LOGO_SVG_DARK}"
         f"<div style='font-size:14px;font-weight:700;color:#fff;line-height:1.2'>{company}</div>"
         f"<div style='font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px'>"
         f"{t('Commission Manager')}</div>"

@@ -19,7 +19,7 @@ TABLES = [
     """CREATE TABLE IF NOT EXISTS branches (
         id         {serial},
         name       TEXT NOT NULL UNIQUE,
-        city       TEXT,
+        region     TEXT,
         is_active  INTEGER DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""",
@@ -162,11 +162,19 @@ def _add_column_if_missing(table: str, column: str, col_type: str):
         pass  # column already exists
 
 
+def _rename_column_if_exists(table: str, old_col: str, new_col: str):
+    try:
+        execute(f"ALTER TABLE {table} RENAME COLUMN {old_col} TO {new_col}")
+    except Exception:
+        pass  # already renamed or column doesn't exist
+
+
 def create_schema():
     serial_def = "SERIAL PRIMARY KEY" if is_postgres() else "INTEGER PRIMARY KEY AUTOINCREMENT"
     for tbl in TABLES:
         sql = tbl.replace("{serial}", serial_def)
         execute(sql)
-    # Migrations — idempotent column additions
+    # Migrations — idempotent
     _add_column_if_missing("kpi_items", "linked_category_id", "INTEGER")
+    _rename_column_if_exists("branches", "city", "region")
 

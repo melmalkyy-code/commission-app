@@ -108,23 +108,23 @@ with tabs[1]:
     with st.expander(t("Add New Branch")):
         with st.form("add_branch_form"):
             n = st.text_input(t("Branch Name *"), key="new_br_name")
-            c = st.text_input(t("City"),          key="new_br_city")
+            r = st.text_input(t("Region"),        key="new_br_region")
             if st.form_submit_button(t("Add Branch"), type="primary") and n:
-                if _save(add_branch, n, c, ok=f"Branch '{n}' added.",
+                if _save(add_branch, n, r, ok=f"Branch '{n}' added.",
                          err=f"Branch '{n}' already exists.") is not None:
                     log_action("ADD_BRANCH", "branch", entity_name=n)
                     st.rerun()
 
     for _bi, br in enumerate(branches):
         status = t("Active") if br['is_active'] else t("Inactive")
-        with st.expander(f"[{status}] {br['name']} — {br.get('city', '')}"):
+        with st.expander(f"[{status}] {br['name']} — {br.get('region', '')}"):
             with st.form(f"br_edit_{_bi}"):
-                new_name  = st.text_input(t("Name"),   br['name'],          key=f"br_n_{_bi}")
-                new_city  = st.text_input(t("City"),   br.get('city', ''), key=f"br_c_{_bi}")
-                is_active = st.checkbox(t("Active"),   bool(br['is_active']), key=f"br_a_{_bi}")
-                c1, c2   = st.columns(2)
+                new_name   = st.text_input(t("Name"),   br['name'],            key=f"br_n_{_bi}")
+                new_region = st.text_input(t("Region"), br.get('region', ''), key=f"br_r_{_bi}")
+                is_active  = st.checkbox(t("Active"),   bool(br['is_active']),  key=f"br_a_{_bi}")
+                c1, c2    = st.columns(2)
                 if c1.form_submit_button(t("Save"), type="primary"):
-                    _save(update_branch, br['id'], new_name, new_city, is_active)
+                    _save(update_branch, br['id'], new_name, new_region, is_active)
                     st.rerun()
                 if c2.form_submit_button(t("Delete"), type="secondary"):
                     _save(delete_branch, br['id'], ok=f"Deleted '{br['name']}'.")

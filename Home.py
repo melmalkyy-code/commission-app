@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from src.startup import init_db
 from src.auth import require_login
-from src.models import get_setting, get_or_create_period, get_period, get_sales
+from src.models import get_setting, get_or_create_period, get_period, get_sales, get_branches
 
 st.set_page_config(
     page_title="Commission Dashboard — Surveying Experts",
@@ -84,6 +84,10 @@ with st.spinner(""):
 
 prev_sp_map = {c['salesperson_name']: c for c in prev_comms}
 
+# Build branch → region mapping from branches table
+_branches_all   = get_branches()
+_branch_to_region = {b['name']: (b.get('region') or '') for b in _branches_all}
+
 
 def _qd(curr: float, prev: float):
     """QoQ delta string for st.metric — None if no prev data."""
@@ -111,8 +115,8 @@ m5.metric(t("On Target"),        f"{totals['achieved_count']} / {totals['total_c
 st.markdown("<div style='margin:1.5rem 0 0'></div>", unsafe_allow_html=True)
 
 # ── Three-level tabs ──────────────────────────────────────────────────────────
-tab_co, tab_br, tab_sp, tab_qoq = st.tabs([
-    t("Company"), t("By Branch"), t("By Salesperson"),
+tab_co, tab_re, tab_br, tab_sp, tab_qoq = st.tabs([
+    t("Company"), t("By Region"), t("By Branch"), t("By Salesperson"),
     f"{'مقارنة بـ' if is_rtl() else 'QoQ vs'} {prev_label}",
 ])
 
@@ -197,6 +201,88 @@ with tab_co:
                                    showlegend=False,
                                    font=dict(family='IBM Plex Sans, system-ui, sans-serif'))
                 st.plotly_chart(fig3, use_container_width=True)
+
+
+# ════════════════════ BY REGION ══════════════════════════════════════════════
+with tab_re:
+    if not commissions:
+        st.info(t("No data for this period."))
+    else:
+        region_map: dict = {}
+        for c in commissions:
+            reg = _branch_to_region.get(c['branch_name'], '') or t("No Region")
+            if reg not in region_map:
+                region_map[reg] = {'sales': 0, 'target': 0, 'base': 0,
+                                   'final': 0, 'count': 0, 'persons': []}
+            region_map[reg]['sales']  += c['total_actual']
+            region_map[reg]['target'] += c['total_target']
+            region_map[reg]['base']   += c['base_commission']
+            region_map[reg]['final']  += c['final_commission']
+            region_map[reg]['count']  += 1
+            region_map[reg]['persons'].append(c)
+
+        # Region summary cards
+        re_cols = st.columns(max(len(region_map), 1))
+        for col, (reg_name, rv) in zip(re_cols, region_map.items()):
+            ach   = (rv['sales'] / rv['target'] * 100) if rv['target'] else 0
+            a_col = '#1f9d62' if ach >= 100 else '#e0a520' if ach >= 80 else '#d64545'
+            col.markdown(
+                f"<div style='background:{PRIMARY};border-radius:10px;padding:16px 14px;"
+                f"text-align:center;color:rgba(255,255,255,0.9)'>"
+                f"<div style='font-size:14px;font-weight:700;color:#fff;margin-bottom:10px'>"
+                f"{reg_name}</div>"
+                f"<div style='font-size:10px;text-transform:uppercase;letter-spacing:.08em;"
+                f"color:rgba(255,255,255,.5);margin-bottom:2px'>{t('Salespersons')}</div>"
+                f"<div style='font-size:16px;font-weight:600;color:#fff'>{rv['count']}</div>"
+                f"<div style='font-size:10px;text-transform:uppercase;letter-spacing:.08em;"
+                f"color:rgba(255,255,255,.5);margin:8px 0 2px'>{t('Sales')}</div>"
+                f"<div style='font-size:13px;font-weight:600;color:{ACCENT}'>{sar(rv['sales'])}</div>"
+                f"<div style='font-size:10px;text-transform:uppercase;letter-spacing:.08em;"
+                f"color:rgba(255,255,255,.5);margin:8px 0 2px'>{t('Achievement')}</div>"
+                f"<div style='font-size:18px;font-weight:700;color:{a_col}'>{ach:.1f}%</div>"
+                f"<div style='font-size:10px;text-transform:uppercase;letter-spacing:.08em;"
+                f"color:rgba(255,255,255,.5);margin:8px 0 2px'>{t('Final Comm.')}</div>"
+                f"<div style='font-size:13px;font-weight:600;color:{ACCENT}'>{sar(rv['final'])}</div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<div style='margin:1rem 0'></div>", unsafe_allow_html=True)
+
+        re_names = list(region_map.keys())
+        fig_re   = go.Figure()
+        fig_re.add_bar(name=t('Target'),     x=re_names,
+                       y=[region_map[r]['target'] / 1_000 for r in re_names],
+                       marker_color=PRIMARY, opacity=0.55)
+        fig_re.add_bar(name=t('Sales'),      x=re_names,
+                       y=[region_map[r]['sales']  / 1_000 for r in re_names],
+                       marker_color=ACCENT, opacity=0.9)
+        fig_re.add_bar(name=t('Commission'), x=re_names,
+                       y=[region_map[r]['final']  / 1_000 for r in re_names],
+                       marker_color='#1f9d62', opacity=0.85)
+        fig_re.update_layout(
+            barmode='group', height=260,
+            margin=dict(l=0, r=0, t=8, b=8),
+            legend=dict(orientation='h', y=1.08, font=dict(size=12)),
+            yaxis=dict(title="SAR (thousands)", gridcolor='#f0f3f5', zeroline=False),
+            plot_bgcolor='white', paper_bgcolor='white',
+            font=dict(family='IBM Plex Sans, system-ui, sans-serif', size=12),
+        )
+        st.plotly_chart(fig_re, use_container_width=True)
+
+        re_table = []
+        for rname, rv in region_map.items():
+            ach = (rv['sales'] / rv['target'] * 100) if rv['target'] else 0
+            re_table.append({
+                t("Region"):           rname,
+                t("Staff"):            rv['count'],
+                t("Sales"):            sar(rv['sales']),
+                t("Target"):           sar(rv['target']),
+                t("Achievement"):      pct(ach),
+                t("Base Comm."):       sar(rv['base']),
+                t("Final Commission"): sar(rv['final']),
+            })
+        st.dataframe(pd.DataFrame(re_table), use_container_width=True, hide_index=True)
 
 
 # ════════════════════ BY BRANCH ══════════════════════════════════════════════
@@ -413,6 +499,38 @@ with tab_qoq:
                 t("Comm. Growth"):         _qg(c['final_commission'], pc),
             })
         st.dataframe(pd.DataFrame(sp_qoq), use_container_width=True, hide_index=True)
+
+        # ── By region ─────────────────────────────────────────────────────────
+        st.markdown(f"#### {t('By Region')}")
+        curr_re_agg: dict = {}
+        prev_re_agg: dict = {}
+        for c in commissions:
+            r = _branch_to_region.get(c['branch_name'], '') or t("No Region")
+            curr_re_agg.setdefault(r, {'sales': 0, 'final': 0})
+            curr_re_agg[r]['sales'] += c['total_actual']
+            curr_re_agg[r]['final'] += c['final_commission']
+        for c in prev_comms:
+            r = _branch_to_region.get(c['branch_name'], '') or t("No Region")
+            prev_re_agg.setdefault(r, {'sales': 0, 'final': 0})
+            prev_re_agg[r]['sales'] += c['total_actual']
+            prev_re_agg[r]['final'] += c['final_commission']
+
+        re_qoq = []
+        for r in sorted(set(list(curr_re_agg) + list(prev_re_agg))):
+            cs = curr_re_agg.get(r, {}).get('sales', 0)
+            ps = prev_re_agg.get(r, {}).get('sales', 0)
+            cf = curr_re_agg.get(r, {}).get('final', 0)
+            pf = prev_re_agg.get(r, {}).get('final', 0)
+            re_qoq.append({
+                t("Region"):                    r,
+                f"{t('Sales')} {prev_label}":   sar(ps),
+                f"{t('Sales')} {period_label}": sar(cs),
+                t("Sales Growth"):              _qg(cs, ps),
+                f"{t('Final Comm.')} {prev_label}":   sar(pf),
+                f"{t('Final Comm.')} {period_label}": sar(cf),
+                t("Comm. Growth"):              _qg(cf, pf),
+            })
+        st.dataframe(pd.DataFrame(re_qoq), use_container_width=True, hide_index=True)
 
         # ── By branch ─────────────────────────────────────────────────────────
         st.markdown(f"#### {t('By Branch')}")

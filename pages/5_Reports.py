@@ -40,6 +40,9 @@ st.divider()
 _EMPTY_T = {'total_sales': 0, 'total_target': 0, 'achievement': 0,
             'total_base': 0, 'total_final': 0, 'achieved_count': 0, 'total_count': 0}
 
+_all_branches    = get_branches()
+_branch_to_region = {b['name']: (b.get('region') or '') for b in _all_branches}
+
 with st.spinner(t("Loading data...")):
     commissions = calc_all_commissions(period['id'])
     totals      = get_totals(commissions)
@@ -134,17 +137,40 @@ def make_excel_company(lang: str = 'en') -> bytes:
                     round(c['final_commission'], 0)])
     _auto_width(ws2)
 
-    # Sheet 3: By Branch
+    # Sheet 3: By Region
+    ws3r = wb.create_sheet(_t("By Region"))
+    if _rtl: ws3r.sheet_view.rightToLeft = True
+    ws3r.append([_t("Region"), _t("Salespersons"), _t("Total Sales"), _t("Target"),
+                 _t("Achievement %"), _t("Base Comm."), _t("Final Comm.")])
+    _fill_row(ws3r, 1, PRIMARY)
+    region_map_xl: dict = {}
+    for c in commissions:
+        reg = _branch_to_region.get(c['branch_name'] or '', '') or _t("No Region")
+        if reg not in region_map_xl:
+            region_map_xl[reg] = {'count': 0, 'sales': 0, 'target': 0, 'base': 0, 'final': 0}
+        region_map_xl[reg]['count'] += 1
+        region_map_xl[reg]['sales']  += c['total_actual']
+        region_map_xl[reg]['target'] += c['total_target']
+        region_map_xl[reg]['base']   += c['base_commission']
+        region_map_xl[reg]['final']  += c['final_commission']
+    for reg, rv in region_map_xl.items():
+        ach = (rv['sales'] / rv['target'] * 100) if rv['target'] else 0
+        ws3r.append([reg, rv['count'], round(rv['sales'], 0), round(rv['target'], 0),
+                     round(ach, 1), round(rv['base'], 0), round(rv['final'], 0)])
+    _auto_width(ws3r)
+
+    # Sheet 4: By Branch
     ws3 = wb.create_sheet(_t("By Branch"))
     if _rtl: ws3.sheet_view.rightToLeft = True
-    ws3.append([_t("Branch"), _t("Salespersons"), _t("Total Sales"), _t("Target"),
+    ws3.append([_t("Branch"), _t("Region"), _t("Salespersons"), _t("Total Sales"), _t("Target"),
                 _t("Achievement %"), _t("Base Comm."), _t("Final Comm.")])
     _fill_row(ws3, 1, PRIMARY)
     branch_map: dict = {}
     for c in commissions:
         b = c['branch_name'] or 'Unknown'
         if b not in branch_map:
-            branch_map[b] = {'count': 0, 'sales': 0, 'target': 0, 'base': 0, 'final': 0}
+            branch_map[b] = {'count': 0, 'sales': 0, 'target': 0, 'base': 0, 'final': 0,
+                             'region': _branch_to_region.get(b, '')}
         branch_map[b]['count'] += 1
         branch_map[b]['sales']  += c['total_actual']
         branch_map[b]['target'] += c['total_target']
@@ -152,8 +178,9 @@ def make_excel_company(lang: str = 'en') -> bytes:
         branch_map[b]['final']  += c['final_commission']
     for br, bv in branch_map.items():
         ach = (bv['sales'] / bv['target'] * 100) if bv['target'] else 0
-        ws3.append([br, bv['count'], round(bv['sales'], 0), round(bv['target'], 0),
-                    round(ach, 1), round(bv['base'], 0), round(bv['final'], 0)])
+        ws3.append([br, bv.get('region', ''), bv['count'], round(bv['sales'], 0),
+                    round(bv['target'], 0), round(ach, 1), round(bv['base'], 0),
+                    round(bv['final'], 0)])
     _auto_width(ws3)
 
     # Sheet 4: By Category
@@ -662,8 +689,8 @@ def _download_options(key_prefix: str) -> tuple:
 # ══════════════════════════════════════════════════════════════════════════════
 # THREE-LEVEL REPORT TABS
 # ══════════════════════════════════════════════════════════════════════════════
-tab_company, tab_branch, tab_person = st.tabs([
-    t("Company Report"), t("Branch Report"), t("Salesperson Report"),
+tab_company, tab_region, tab_branch, tab_person = st.tabs([
+    t("Company Report"), t("Region Report"), t("Branch Report"), t("Salesperson Report"),
 ])
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -699,6 +726,63 @@ with tab_company:
 
 
 # ────────────────────────────────────────────────────────────────────────────
+# REGION REPORT
+# ────────────────────────────────────────────────────────────────────────────
+with tab_region:
+    st.markdown(f"### {t('Region Reports')} — {period_label}")
+
+    region_groups: dict = {}
+    for c in commissions:
+        reg = _branch_to_region.get(c['branch_name'] or '', '') or t("No Region")
+        region_groups.setdefault(reg, []).append(c)
+
+    if not region_groups:
+        st.info(t("No commission data for this period."))
+    else:
+        # Summary table
+        re_rows = []
+        for reg_name, persons in region_groups.items():
+            r_sales  = sum(c['total_actual'] for c in persons)
+            r_target = sum(c['total_target'] for c in persons)
+            r_final  = sum(c['final_commission'] for c in persons)
+            ach = (r_sales / r_target * 100) if r_target else 0
+            re_rows.append({
+                t("Region"):           reg_name,
+                t("Salespersons"):     len(persons),
+                t("Total Sales"):      f"SAR {r_sales:,.0f}",
+                t("Target"):           f"SAR {r_target:,.0f}",
+                t("Achievement"):      f"{ach:.1f}%",
+                t("Final Commission"): f"SAR {r_final:,.0f}",
+            })
+        st.dataframe(pd.DataFrame(re_rows), use_container_width=True, hide_index=True)
+        st.markdown("---")
+
+        # Per-region download
+        sel_reg = st.selectbox(t("Select region to download"), list(region_groups.keys()),
+                               key="rep_re_sel")
+        if sel_reg:
+            reg_persons = region_groups[sel_reg]
+            st.markdown(f"**{t('Region Report')}: {sel_reg}**")
+            _dl_lang_re, _dl_pdf_re = _download_options("re")
+            if _dl_pdf_re:
+                st.download_button(
+                    label=t('Download PDF'),
+                    data=make_pdf_branch(sel_reg, reg_persons, lang=_dl_lang_re),
+                    file_name=f"Region_{sel_reg}_{period_label.replace(' ','_')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                )
+            else:
+                st.download_button(
+                    label=f"{t('Download Excel')} — {sel_reg}",
+                    data=make_excel_branch(sel_reg, reg_persons, lang=_dl_lang_re),
+                    file_name=f"Region_{sel_reg}_{period_label.replace(' ','_')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                )
+
+
+# ────────────────────────────────────────────────────────────────────────────
 # BRANCH REPORT
 # ────────────────────────────────────────────────────────────────────────────
 with tab_branch:
@@ -721,6 +805,7 @@ with tab_branch:
             ach = (b_sales / b_target * 100) if b_target else 0
             br_rows.append({
                 t("Branch"):           br_name,
+                t("Region"):           _branch_to_region.get(br_name, '') or '—',
                 t("Salespersons"):     len(persons),
                 t("Total Sales"):      f"SAR {b_sales:,.0f}",
                 t("Target"):           f"SAR {b_target:,.0f}",
