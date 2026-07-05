@@ -11,12 +11,13 @@ from src.models import (get_setting, get_salespersons, get_categories,
 from src.calculations import calc_all_commissions, get_totals
 from src.ui import inject_css, page_header, sidebar_logo
 from src.i18n import t, q_label
+from src.branding import page_icon
 
 PRIMARY = get_setting('primary_color', '#354f61')
 ACCENT  = get_setting('accent_color', '#f6ba3b')
 COMPANY = get_setting('company_name', 'Surveying Experts')
 
-st.set_page_config(page_title="Sales Input — Surveying Experts", layout="wide")
+st.set_page_config(page_title="Sales Input — Surveying Experts", page_icon=page_icon(), layout="wide")
 inject_css(PRIMARY)
 sidebar_logo(COMPANY, PRIMARY)
 page_header(t("Sales Input"), t("Enter actual sales amounts (SAR) for each salesperson"), PRIMARY)

@@ -72,257 +72,396 @@ _CSS = """
 @import url('{font}');
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700&display=swap');
 
-/* ── Base font ── */
-html, body, [class*="css"], .stApp {{
+/* ── Design tokens ── */
+:root {
+  --se-navy:   #1a2b38;
+  --se-blue:   #354f61;
+  --se-blue-d: #243949;
+  --se-gold:   #f6ba3b;
+  --se-ink:    #1a2b38;
+  --se-muted:  #6b757d;
+  --se-line:   #e5e8eb;
+  --se-card:   #ffffff;
+  --se-radius: 14px;
+  --se-shadow: 0 1px 2px rgba(26,43,56,0.04), 0 4px 16px rgba(26,43,56,0.06);
+  --se-shadow-hover: 0 6px 24px rgba(26,43,56,0.12);
+}
+
+/* ── Base font + smoothing ── */
+html, body, [class*="css"], .stApp {
   font-family: 'IBM Plex Sans', system-ui, sans-serif !important;
-}}
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
 
-/* ── App background ── */
-.stApp, .main > .block-container {{
-  background: #f8f9fa !important;
-}}
-.main > .block-container {{
-  padding-top: 2rem !important;
-  padding-bottom: 2rem !important;
-  max-width: 1200px !important;
-}}
+/* ── App background — soft vertical wash ── */
+.stApp {
+  background: linear-gradient(180deg, #f5f7f9 0%, #eef1f4 100%) !important;
+  background-attachment: fixed !important;
+}
+.main > .block-container {
+  padding-top: 2.2rem !important;
+  padding-bottom: 3rem !important;
+  max-width: 1240px !important;
+}
 
-/* ── Sidebar — SE dark blue ── */
-[data-testid="stSidebar"] {{
-  background: #1a2b38 !important;
-}}
-[data-testid="stSidebar"] > div:first-child {{
-  background: #1a2b38 !important;
-}}
-[data-testid="stSidebar"] * {{
-  color: rgba(255,255,255,0.7) !important;
-}}
+/* ── Sidebar — SE dark blue gradient ── */
+[data-testid="stSidebar"],
+[data-testid="stSidebar"] > div:first-child {
+  background: linear-gradient(180deg, #1f3342 0%, #16242f 100%) !important;
+}
+[data-testid="stSidebar"] * { color: rgba(255,255,255,0.72) !important; }
 [data-testid="stSidebar"] h1,
 [data-testid="stSidebar"] h2,
 [data-testid="stSidebar"] h3,
-[data-testid="stSidebar"] strong {{
-  color: #fff !important;
-}}
-[data-testid="stSidebar"] hr {{
-  border-color: rgba(255,255,255,0.12) !important;
-}}
-[data-testid="stSidebar"] .stButton button {{
+[data-testid="stSidebar"] strong { color: #fff !important; }
+[data-testid="stSidebar"] hr { border-color: rgba(255,255,255,0.10) !important; }
+[data-testid="stSidebar"] .stButton button {
   background: rgba(255,255,255,0.06) !important;
-  border: 1px solid rgba(255,255,255,0.15) !important;
-  color: rgba(255,255,255,0.8) !important;
-  border-radius: 7px !important;
-}}
-[data-testid="stSidebar"] .stButton button:hover {{
-  background: rgba(246,186,59,0.12) !important;
-  border-color: #f6ba3b !important;
-  color: #f6ba3b !important;
-}}
-[data-testid="stSidebar"] [data-testid="stSidebarNav"] a {{
-  color: rgba(255,255,255,0.6) !important;
-  border-radius: 7px !important;
-  padding: 6px 10px !important;
-  margin-bottom: 2px !important;
-}}
-[data-testid="stSidebar"] [data-testid="stSidebarNav"] a:hover {{
-  background: rgba(255,255,255,0.06) !important;
+  border: 1px solid rgba(255,255,255,0.14) !important;
+  color: rgba(255,255,255,0.82) !important;
+  border-radius: 9px !important;
+  transition: all 0.18s ease !important;
+}
+[data-testid="stSidebar"] .stButton button:hover {
+  background: rgba(246,186,59,0.14) !important;
+  border-color: var(--se-gold) !important;
+  color: var(--se-gold) !important;
+}
+/* Custom nav (page_link) */
+[data-testid="stSidebar"] [data-testid="stPageLink"] a,
+[data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"] {
+  color: rgba(255,255,255,0.66) !important;
+  border-radius: 9px !important;
+  padding: 8px 12px !important;
+  margin-bottom: 3px !important;
+  font-weight: 500 !important;
+  transition: all 0.16s ease !important;
+}
+[data-testid="stSidebar"] [data-testid="stPageLink"] a:hover {
+  background: rgba(255,255,255,0.07) !important;
   color: #fff !important;
-}}
-[data-testid="stSidebar"] [data-testid="stSidebarNav"] a[data-active="true"],
-[data-testid="stSidebar"] [data-testid="stSidebarNav"] a[aria-current] {{
-  background: rgba(246,186,59,0.10) !important;
-  color: #f6ba3b !important;
-  border-left: 2px solid #f6ba3b !important;
-}}
-/* selectbox / number input inside sidebar */
+  transform: translateX(2px);
+}
 [data-testid="stSidebar"] [data-baseweb="select"] > div,
-[data-testid="stSidebar"] input {{
+[data-testid="stSidebar"] input {
   background: rgba(255,255,255,0.08) !important;
   border-color: rgba(255,255,255,0.15) !important;
-  color: rgba(255,255,255,0.85) !important;
-}}
-/* Language switcher — active = SE gold, inactive = glass */
+  color: rgba(255,255,255,0.9) !important;
+  border-radius: 8px !important;
+}
 [data-testid="stSidebar"] .stButton button[kind="primary"],
-[data-testid="stSidebar"] .stButton button[data-testid="baseButton-primary"] {{
-  background: #f6ba3b !important;
-  border-color: #f6ba3b !important;
-  color: #1a2b38 !important;
+[data-testid="stSidebar"] .stButton button[data-testid="baseButton-primary"] {
+  background: var(--se-gold) !important;
+  border-color: var(--se-gold) !important;
+  color: var(--se-navy) !important;
   font-weight: 700 !important;
   border-radius: 8px !important;
-  box-shadow: 0 2px 8px rgba(246,186,59,0.3) !important;
-}}
+  box-shadow: 0 2px 10px rgba(246,186,59,0.32) !important;
+}
 
 /* ── Headings ── */
-h1, h2, h3, h4, h5, h6 {{
+h1, h2, h3, h4, h5, h6 {
   font-family: 'IBM Plex Sans', system-ui, sans-serif !important;
-  color: #1a2b38 !important;
-  letter-spacing: -0.015em;
-}}
+  color: var(--se-ink) !important;
+  letter-spacing: -0.018em;
+}
 
-/* ── Metric cards ── */
-[data-testid="metric-container"] {{
-  background: #ffffff !important;
-  border: 1px solid #e5e8eb !important;
-  border-radius: 10px !important;
-  padding: 1rem 1.1rem !important;
-  box-shadow: 0 1px 3px rgba(36,57,73,0.06) !important;
-}}
-[data-testid="stMetricLabel"] {{
-  font-size: 12px !important;
-  color: #6b757d !important;
-  font-weight: 500 !important;
+/* ── Metric cards — elevated with gold top accent ── */
+[data-testid="stMetric"],
+[data-testid="metric-container"] {
+  background: var(--se-card) !important;
+  border: 1px solid var(--se-line) !important;
+  border-radius: var(--se-radius) !important;
+  padding: 1.05rem 1.15rem !important;
+  box-shadow: var(--se-shadow) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  transition: transform 0.18s ease, box-shadow 0.18s ease !important;
+}
+[data-testid="stMetric"]::before,
+[data-testid="metric-container"]::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--se-gold), #ffd67a);
+  opacity: 0.9;
+}
+[data-testid="stMetric"]:hover,
+[data-testid="metric-container"]:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--se-shadow-hover) !important;
+}
+[data-testid="stMetricLabel"] {
+  font-size: 11.5px !important;
+  color: var(--se-muted) !important;
+  font-weight: 600 !important;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-}}
-[data-testid="stMetricValue"] {{
-  font-size: 22px !important;
+  letter-spacing: 0.05em;
+}
+[data-testid="stMetricValue"] {
+  font-size: 24px !important;
   font-weight: 700 !important;
-  color: #1a2b38 !important;
-}}
-[data-testid="stMetricDelta"] {{
-  font-size: 12px !important;
-}}
+  color: var(--se-ink) !important;
+  letter-spacing: -0.02em;
+}
+[data-testid="stMetricDelta"] { font-size: 12px !important; }
 
 /* ── Buttons ── */
-.stButton > button {{
+.stButton > button {
   font-family: 'IBM Plex Sans', sans-serif !important;
-  border-radius: 8px !important;
-  font-weight: 500 !important;
-  transition: all 0.15s ease !important;
-}}
+  border-radius: 9px !important;
+  font-weight: 600 !important;
+  min-height: 40px !important;
+  transition: all 0.16s ease !important;
+}
 .stButton > button[kind="primary"],
-.stButton > button[data-testid="baseButton-primary"] {{
-  background: #354f61 !important;
-  border-color: #354f61 !important;
+.stButton > button[data-testid="baseButton-primary"] {
+  background: var(--se-blue) !important;
+  border-color: var(--se-blue) !important;
   color: #fff !important;
-}}
-.stButton > button[kind="primary"]:hover {{
-  background: #243949 !important;
-  border-color: #243949 !important;
+}
+.stButton > button[kind="primary"]:hover {
+  background: var(--se-blue-d) !important;
+  border-color: var(--se-blue-d) !important;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(36,57,73,0.2) !important;
-}}
+  box-shadow: 0 6px 16px rgba(36,57,73,0.22) !important;
+}
 .stButton > button[kind="secondary"],
-.stButton > button[data-testid="baseButton-secondary"] {{
+.stButton > button[data-testid="baseButton-secondary"] {
   border-color: #d2d7dc !important;
   color: #364046 !important;
-}}
-.stButton > button[kind="secondary"]:hover {{
-  border-color: #354f61 !important;
-  color: #354f61 !important;
+}
+.stButton > button[kind="secondary"]:hover {
+  border-color: var(--se-blue) !important;
+  color: var(--se-blue) !important;
   background: #eef2f4 !important;
-}}
+}
+[data-testid="stDownloadButton"] > button { min-height: 40px !important; border-radius: 9px !important; }
 
-/* ── Tabs ── */
-.stTabs [data-baseweb="tab-list"] {{
+/* ── Tabs — scrollable on small screens ── */
+.stTabs [data-baseweb="tab-list"] {
   background: transparent !important;
-  border-bottom: 1px solid #e5e8eb !important;
+  border-bottom: 1px solid var(--se-line) !important;
   gap: 0 !important;
-}}
-.stTabs [data-baseweb="tab"] {{
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.stTabs [data-baseweb="tab-list"]::-webkit-scrollbar { height: 3px; }
+.stTabs [data-baseweb="tab-list"]::-webkit-scrollbar-thumb { background: #cdd4da; border-radius: 3px; }
+.stTabs [data-baseweb="tab"] {
   font-family: 'IBM Plex Sans', sans-serif !important;
   font-size: 13px !important;
-  font-weight: 400 !important;
-  color: #6b757d !important;
+  font-weight: 500 !important;
+  color: var(--se-muted) !important;
   padding: 10px 16px !important;
   border-radius: 0 !important;
   border-bottom: 2px solid transparent !important;
-}}
-.stTabs [aria-selected="true"] {{
-  color: #354f61 !important;
-  font-weight: 500 !important;
-  border-bottom: 2px solid #354f61 !important;
+  white-space: nowrap !important;
+}
+.stTabs [aria-selected="true"] {
+  color: var(--se-blue) !important;
+  font-weight: 600 !important;
+  border-bottom: 2px solid var(--se-blue) !important;
   background: transparent !important;
-}}
-.stTabs [data-baseweb="tab-border"] {{
-  display: none !important;
-}}
-.stTabs [data-baseweb="tab-panel"] {{
-  padding-top: 1.2rem !important;
-}}
+}
+.stTabs [data-baseweb="tab-border"] { display: none !important; }
+.stTabs [data-baseweb="tab-panel"] { padding-top: 1.2rem !important; }
+
+/* ── Plotly charts wrapped as cards ── */
+[data-testid="stPlotlyChart"] {
+  background: var(--se-card) !important;
+  border: 1px solid var(--se-line) !important;
+  border-radius: var(--se-radius) !important;
+  padding: 10px 12px !important;
+  box-shadow: var(--se-shadow) !important;
+  overflow: hidden !important;
+}
 
 /* ── Dataframe / data editor ── */
 [data-testid="stDataFrame"],
-[data-testid="stDataEditor"] {{
-  border-radius: 10px !important;
+[data-testid="stDataEditor"] {
+  border-radius: var(--se-radius) !important;
   overflow: hidden !important;
-  border: 1px solid #e5e8eb !important;
-}}
+  border: 1px solid var(--se-line) !important;
+  box-shadow: var(--se-shadow) !important;
+}
 
 /* ── Expanders ── */
-[data-testid="stExpander"] {{
-  border: 1px solid #e5e8eb !important;
-  border-radius: 10px !important;
+[data-testid="stExpander"] {
+  border: 1px solid var(--se-line) !important;
+  border-radius: var(--se-radius) !important;
   overflow: hidden !important;
-  background: #fff !important;
-  margin-bottom: 8px !important;
-}}
-[data-testid="stExpander"] summary {{
-  padding: 12px 16px !important;
-  background: #fff !important;
-  font-weight: 500 !important;
-  color: #1a2b38 !important;
-}}
-[data-testid="stExpander"] > div:last-child {{
-  padding: 0 16px 16px !important;
-}}
+  background: var(--se-card) !important;
+  margin-bottom: 10px !important;
+  box-shadow: var(--se-shadow) !important;
+}
+[data-testid="stExpander"] summary {
+  padding: 13px 16px !important;
+  background: var(--se-card) !important;
+  font-weight: 600 !important;
+  color: var(--se-ink) !important;
+}
+[data-testid="stExpander"] summary:hover { background: #f7f9fb !important; }
+[data-testid="stExpander"] > div:last-child { padding: 0 16px 16px !important; }
 
 /* ── Forms ── */
-.stForm {{
-  background: #fff !important;
-  border: 1px solid #e5e8eb !important;
-  border-radius: 10px !important;
-  padding: 1rem 1.25rem !important;
-}}
+.stForm {
+  background: var(--se-card) !important;
+  border: 1px solid var(--se-line) !important;
+  border-radius: var(--se-radius) !important;
+  padding: 1.15rem 1.3rem !important;
+  box-shadow: var(--se-shadow) !important;
+}
 
-/* ── Inputs ── */
+/* ── Inputs — comfortable touch targets ── */
 [data-baseweb="input"] input,
 [data-baseweb="textarea"] textarea,
-[data-baseweb="select"] div[data-value] {{
+[data-baseweb="select"] div[data-value] {
   font-family: 'IBM Plex Sans', sans-serif !important;
   border-radius: 8px !important;
-}}
+}
+[data-baseweb="input"], [data-baseweb="select"] > div {
+  border-radius: 8px !important;
+}
+[data-baseweb="input"]:focus-within, [data-baseweb="select"] > div:focus-within {
+  border-color: var(--se-blue) !important;
+  box-shadow: 0 0 0 3px rgba(53,79,97,0.10) !important;
+}
 
 /* ── Alerts / info boxes ── */
-[data-testid="stAlert"] {{
-  border-radius: 8px !important;
-}}
+[data-testid="stAlert"] { border-radius: 10px !important; }
 
 /* ── Divider ── */
-hr {{
-  border-color: #e5e8eb !important;
-  margin: 1rem 0 !important;
-}}
+hr { border-color: var(--se-line) !important; margin: 1.1rem 0 !important; }
 
-/* ── Toast / success ── */
-[data-testid="toastContainer"] * {{
+/* ── Toast ── */
+[data-testid="toastContainer"] * {
   font-family: 'IBM Plex Sans', sans-serif !important;
-  border-radius: 8px !important;
-}}
+  border-radius: 10px !important;
+}
 
-/* ── Hide Streamlit footer + menu ── */
-#MainMenu {{ visibility: hidden; }}
-footer {{ visibility: hidden; }}
+/* ── Running/status widget → brand colours ── */
+[data-testid="stStatusWidget"] {
+  background: var(--se-navy) !important;
+  color: #fff !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.2) !important;
+}
+[data-testid="stStatusWidget"] * { color: #fff !important; }
+[data-testid="stStatusWidget"] svg { fill: var(--se-gold) !important; color: var(--se-gold) !important; }
 
-/* ── Hide auto-generated sidebar nav (replaced by translated custom nav) ── */
-[data-testid="stSidebarNav"] {{ display: none !important; }}
-/* DO NOT hide stToolbar — it contains the sidebar toggle in some Streamlit builds */
+/* Spinner accent */
+.stSpinner > div { border-top-color: var(--se-gold) !important; }
 
-/* ── Sidebar collapse/expand toggle — always visible and clickable ── */
-[data-testid="collapsedControl"] {{
+/* ── Custom scrollbar (desktop) ── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #cbd3da; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: #aeb8c0; background-clip: content-box; }
+
+/* ── Hide Streamlit chrome ── */
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+[data-testid="stSidebarNav"] { display: none !important; }
+
+/* ── Sidebar collapse/expand toggle — always visible ── */
+[data-testid="collapsedControl"] {
   display: flex !important;
   visibility: visible !important;
   opacity: 1 !important;
   pointer-events: all !important;
-  background: #1a2b38 !important;
+  background: var(--se-navy) !important;
   border-radius: 0 8px 8px 0 !important;
   box-shadow: 2px 2px 8px rgba(0,0,0,0.18) !important;
   z-index: 999999 !important;
-}}
+}
 [data-testid="collapsedControl"] svg,
-[data-testid="collapsedControl"] button svg {{
-  fill: rgba(255,255,255,0.9) !important;
-  color: rgba(255,255,255,0.9) !important;
-}}
+[data-testid="collapsedControl"] button svg {
+  fill: rgba(255,255,255,0.92) !important;
+  color: rgba(255,255,255,0.92) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE — TABLET (≤ 1024px)
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .main > .block-container {
+    padding-left: 1.4rem !important;
+    padding-right: 1.4rem !important;
+    padding-top: 1.6rem !important;
+  }
+  [data-testid="stMetricValue"] { font-size: 21px !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE — MOBILE (≤ 640px)
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  .main > .block-container {
+    padding-left: 0.85rem !important;
+    padding-right: 0.85rem !important;
+    padding-top: 1.1rem !important;
+    padding-bottom: 2rem !important;
+  }
+
+  /* Page header scales down */
+  .main h1 { font-size: 20px !important; line-height: 1.25 !important; }
+  .main h2 { font-size: 17px !important; }
+  .main h3 { font-size: 15px !important; }
+
+  /* Metric cards: tighter, prevent value clipping */
+  [data-testid="stMetric"],
+  [data-testid="metric-container"] { padding: 0.8rem 0.9rem !important; }
+  [data-testid="stMetricValue"] { font-size: 19px !important; }
+  [data-testid="stMetricLabel"] { font-size: 10.5px !important; }
+
+  /* Stack multi-column rows in the main area so inputs are usable on a phone
+     (scoped to .main so the sidebar's own columns are left intact) */
+  .main [data-testid="stHorizontalBlock"] {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+  .main [data-testid="stHorizontalBlock"] > [data-testid="column"],
+  .main [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+    flex: 1 1 100% !important;
+    min-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Buttons full width for easy tapping */
+  .stButton > button,
+  [data-testid="stDownloadButton"] > button,
+  [data-testid="stFormSubmitButton"] > button {
+    width: 100% !important;
+    min-height: 44px !important;
+  }
+
+  /* Tabs: smaller, keep horizontal scroll */
+  .stTabs [data-baseweb="tab"] { padding: 9px 12px !important; font-size: 12.5px !important; }
+
+  /* Tables scroll horizontally instead of overflowing the viewport */
+  [data-testid="stDataFrame"], [data-testid="stDataEditor"],
+  [data-testid="stTable"] { overflow-x: auto !important; }
+
+  /* Forms & expanders: reduce inner padding */
+  .stForm { padding: 0.9rem 0.95rem !important; }
+  [data-testid="stExpander"] > div:last-child { padding: 0 12px 12px !important; }
+
+  /* Plotly charts: less padding, avoid horizontal overflow */
+  [data-testid="stPlotlyChart"] { padding: 6px 4px !important; }
+  [data-testid="stPlotlyChart"] > div { width: 100% !important; }
+
+  /* Keep the sidebar toggle comfortably tappable */
+  [data-testid="collapsedControl"] { padding: 6px !important; transform: scale(1.1); }
+}
+
+/* Very small phones */
+@media (max-width: 380px) {
+  [data-testid="stMetricValue"] { font-size: 17px !important; }
+  .main h1 { font-size: 18px !important; }
+}
 """
 
 
@@ -335,48 +474,48 @@ html, body, .main, .main .block-container,
 .stForm, .stExpander, .stAlert,
 [data-testid="stMarkdownContainer"],
 [data-testid="stText"],
-[data-baseweb="tab-panel"] {{
+[data-baseweb="tab-panel"] {
   direction: rtl !important;
   text-align: right !important;
-}}
-html, body, [class*="css"], .stApp {{
+}
+html, body, [class*="css"], .stApp {
   font-family: 'Cairo', system-ui, sans-serif !important;
-}}
-h1, h2, h3, h4, h5, h6 {{
+}
+h1, h2, h3, h4, h5, h6 {
   font-family: 'Cairo', system-ui, sans-serif !important;
   text-align: right !important;
-}}
+}
 /* Input labels and captions */
 label, .stTextInput label, .stSelectbox label,
 .stNumberInput label, .stCheckbox label,
-.stRadio label, [data-testid="stWidgetLabel"] {{
+.stRadio label, [data-testid="stWidgetLabel"] {
   direction: rtl !important;
   text-align: right !important;
   width: 100% !important;
-}}
+}
 /* Metrics */
 [data-testid="stMetricLabel"],
-[data-testid="stMetricValue"] {{
+[data-testid="stMetricValue"] {
   text-align: right !important;
-}}
+}
 /* Tabs — RTL order */
-[data-baseweb="tab-list"] {{
+[data-baseweb="tab-list"] {
   direction: rtl !important;
-}}
+}
 /* Keep sidebar LTR so navigation stays readable */
 [data-testid="stSidebar"],
-[data-testid="stSidebar"] * {{
+[data-testid="stSidebar"] * {
   direction: ltr !important;
   text-align: left !important;
-}}
+}
 """
 
 
 def inject_css(primary: str = "#354f61") -> None:
     """Inject SE design system CSS. Call once per page after set_page_config."""
-    css = f"<style>{_CSS.format(font=_FONT)}</style>"
+    css = "<style>" + _CSS.replace("{font}", _FONT) + "</style>"
     if is_rtl():
-        css += f"<style>{_RTL_CSS.format(font_ar=_FONT_AR)}</style>"
+        css += "<style>" + _RTL_CSS.replace("{font_ar}", _FONT_AR) + "</style>"
     st.html(css)
 
 

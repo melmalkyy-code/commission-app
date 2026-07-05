@@ -8,10 +8,11 @@ import plotly.express as px
 from src.startup import init_db
 from src.auth import require_login
 from src.models import get_setting, get_or_create_period, get_period, get_sales, get_branches
+from src.branding import page_icon
 
 st.set_page_config(
     page_title="Commission Dashboard — Surveying Experts",
-    page_icon="chart_with_upwards_trend",
+    page_icon=page_icon(),
     layout="wide",
     initial_sidebar_state="expanded",
 )

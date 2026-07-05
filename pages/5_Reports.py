@@ -11,13 +11,14 @@ from src.calculations import calc_all_commissions, get_totals
 from src.ui import inject_css, page_header, sidebar_logo
 from src.i18n import t, tl, q_label, is_rtl
 from src.pdf_arabic import cell as _ar_cell, pdf_font, pdf_font_bold, ar as _ar
+from src.branding import page_icon
 
 PRIMARY = get_setting('primary_color', '#354f61')
 ACCENT  = get_setting('accent_color', '#f6ba3b')
 COMPANY = get_setting('company_name', 'Surveying Experts')
 _LOGO_B64   = get_setting('company_logo_b64', '')
 _LOGO_BYTES = base64.b64decode(_LOGO_B64) if _LOGO_B64 else None
-st.set_page_config(page_title="Reports Center — Surveying Experts", layout="wide")
+st.set_page_config(page_title="Reports Center — Surveying Experts", page_icon=page_icon(), layout="wide")
 inject_css(PRIMARY)
 sidebar_logo(COMPANY, PRIMARY)
 page_header(t("Reports Center"), t("Download commission reports at company, branch, and salesperson level"), PRIMARY)

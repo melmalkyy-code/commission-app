@@ -291,6 +291,17 @@ def _show_login():
         border-color: rgba(214,69,69,0.4) !important;
         color: #ffb3b3 !important;
     }}
+
+    /* ── Mobile: tighten the login card ── */
+    @media (max-width: 640px) {{
+        .main .block-container {{
+            max-width: 94vw !important;
+            margin: 4vh auto 0 !important;
+            padding: 1.6rem 1.4rem 1.4rem !important;
+            border-radius: 16px !important;
+        }}
+        [data-testid="stFormSubmitButton"] > button {{ height: 46px !important; }}
+    }}
     </style>
     <div style="text-align:center;padding:8px 0 24px;direction:{dir_s}">
       {_LOGO_SVG_DARK}
@@ -371,9 +382,10 @@ def require_login() -> None:
 
     # Not authenticated — show login page
     try:
+        from src.branding import page_icon
         st.set_page_config(
-            page_title="Sign In",
-            page_icon="lock",
+            page_title="Sign In — Surveying Experts",
+            page_icon=page_icon(),
             layout="centered",
         )
     except Exception:

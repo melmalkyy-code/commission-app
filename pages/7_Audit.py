@@ -9,10 +9,11 @@ from src.models import get_setting, get_audit_logs
 
 from src.ui import inject_css, page_header, sidebar_logo
 from src.i18n import t
+from src.branding import page_icon
 
 PRIMARY = get_setting('primary_color', '#354f61')
 COMPANY = get_setting('company_name', 'Surveying Experts')
-st.set_page_config(page_title="Audit Log — Surveying Experts", layout="wide")
+st.set_page_config(page_title="Audit Log — Surveying Experts", page_icon=page_icon(), layout="wide")
 inject_css(PRIMARY)
 sidebar_logo(COMPANY, PRIMARY)
 page_header(t("Audit Log"), t("Complete trail of all data changes and user actions"), PRIMARY)

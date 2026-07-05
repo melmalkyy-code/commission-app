@@ -12,12 +12,13 @@ from src.models import (get_setting, get_salespersons, get_kpi_items,
 from src.calculations import calc_kpi
 from src.ui import inject_css, page_header, sidebar_logo
 from src.i18n import t, q_label
+from src.branding import page_icon
 
 PRIMARY = get_setting('primary_color', '#354f61')
 ACCENT  = get_setting('accent_color', '#f6ba3b')
 COMPANY = get_setting('company_name', 'Surveying Experts')
 
-st.set_page_config(page_title="KPI Calculation — Surveying Experts", layout="wide")
+st.set_page_config(page_title="KPI Calculation — Surveying Experts", page_icon=page_icon(), layout="wide")
 inject_css(PRIMARY)
 sidebar_logo(COMPANY, PRIMARY)
 page_header(t("KPI Calculation"), t("Enter manual KPI scores (0–100) and review results"), PRIMARY)
