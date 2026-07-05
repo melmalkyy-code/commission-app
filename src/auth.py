@@ -151,9 +151,9 @@ def _show_login():
     font   = "'Cairo',system-ui,sans-serif" if rtl else "'IBM Plex Sans',system-ui,sans-serif"
     align  = 'right' if rtl else 'left'
 
-    from src.ui import _LOGO_SVG_LIGHT
-    # Single st.html() call — CSS + header in one block to avoid rerun loops
-    # (multiple st.html() elements each fire resize events that trigger reruns)
+    from src.ui import _LOGO_SVG_DARK
+    # Single st.html() call — CSS + header in one block to avoid rerun loops.
+    # Design: dark gradient background + glass-morphism card + white text throughout.
     st.html(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;700&display=swap');
@@ -167,14 +167,48 @@ def _show_login():
         background: linear-gradient(145deg, {primary} 0%, #1a2b38 55%, #0e1c27 100%) !important;
         min-height: 100vh !important;
     }}
+
+    /* Glass-morphism card — works on all Streamlit versions */
     .main .block-container {{
-        max-width: 460px !important;
-        margin: 5vh auto 0 !important;
+        max-width: 440px !important;
+        margin: 7vh auto 0 !important;
         padding: 2.5rem 2.5rem 2rem !important;
-        background: #ffffff !important;
+        background: rgba(255,255,255,0.08) !important;
+        border: 1px solid rgba(255,255,255,0.18) !important;
         border-radius: 20px !important;
-        box-shadow: 0 28px 80px rgba(0,0,0,0.35) !important;
+        backdrop-filter: blur(18px) !important;
+        -webkit-backdrop-filter: blur(18px) !important;
+        box-shadow: 0 24px 64px rgba(0,0,0,0.40) !important;
     }}
+
+    /* Label text — white */
+    [data-testid="stTextInput"] label,
+    [data-testid="stWidgetLabel"] {{
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        color: rgba(255,255,255,0.85) !important;
+        font-family: {font} !important;
+        direction: {dir_s} !important;
+        text-align: {align} !important;
+    }}
+
+    /* Input fields — glass style */
+    [data-baseweb="input"] {{
+        background: rgba(255,255,255,0.10) !important;
+        border-color: rgba(255,255,255,0.22) !important;
+        border-radius: 10px !important;
+    }}
+    [data-baseweb="input"] input {{
+        color: #ffffff !important;
+        font-size: 15px !important;
+        font-family: {font} !important;
+        direction: {dir_s} !important;
+    }}
+    [data-baseweb="input"] input::placeholder {{
+        color: rgba(255,255,255,0.40) !important;
+    }}
+
+    /* Language pill buttons */
     .stButton > button {{
         border-radius: 20px !important;
         font-size: 12px !important;
@@ -183,52 +217,55 @@ def _show_login():
         font-family: {font} !important;
         min-height: 32px !important;
     }}
-    [data-testid="stTextInput"] label,
-    [data-testid="stWidgetLabel"] {{
-        font-size: 13px !important;
-        font-weight: 600 !important;
-        color: #374151 !important;
-        font-family: {font} !important;
-        direction: {dir_s} !important;
-        text-align: {align} !important;
+    .stButton > button[kind="secondary"] {{
+        background: rgba(255,255,255,0.08) !important;
+        border-color: rgba(255,255,255,0.25) !important;
+        color: rgba(255,255,255,0.80) !important;
     }}
-    [data-baseweb="input"] input {{
-        border-radius: 10px !important;
-        font-size: 15px !important;
-        font-family: {font} !important;
-        padding: 12px 14px !important;
-        direction: {dir_s} !important;
+    .stButton > button[kind="primary"] {{
+        background: #f6ba3b !important;
+        border-color: #f6ba3b !important;
+        color: #1a2b38 !important;
     }}
+
+    /* Form — no extra border */
     .stForm {{
         border: none !important;
         padding: 0 !important;
         background: transparent !important;
         box-shadow: none !important;
     }}
+
+    /* Sign In button */
     [data-testid="stFormSubmitButton"] > button {{
-        background: {primary} !important;
-        border-color: {primary} !important;
-        color: #fff !important;
+        background: #f6ba3b !important;
+        border-color: #f6ba3b !important;
+        color: #1a2b38 !important;
         border-radius: 10px !important;
         height: 50px !important;
         font-size: 15px !important;
         font-weight: 700 !important;
         width: 100% !important;
-        margin-top: 6px !important;
+        margin-top: 8px !important;
         font-family: {font} !important;
         letter-spacing: 0.02em !important;
     }}
+
+    /* Alert */
     [data-testid="stAlert"] {{
         border-radius: 10px !important;
         font-family: {font} !important;
         direction: {dir_s} !important;
+        background: rgba(214,69,69,0.15) !important;
+        border-color: rgba(214,69,69,0.4) !important;
+        color: #ffb3b3 !important;
     }}
     </style>
-    <div style="text-align:center;padding:4px 0 20px;direction:{dir_s}">
-      {_LOGO_SVG_LIGHT}
-      <div style="font-size:24px;font-weight:700;color:#1a2b38;
-          font-family:{font};letter-spacing:-0.02em;line-height:1.2">{company}</div>
-      <div style="font-size:13px;color:#6b757d;margin-top:8px;font-family:{font}">
+    <div style="text-align:center;padding:8px 0 24px;direction:{dir_s}">
+      {_LOGO_SVG_DARK}
+      <div style="font-size:26px;font-weight:700;color:#ffffff;
+          font-family:{font};letter-spacing:-0.02em;line-height:1.2;margin-bottom:6px">{company}</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.55);font-family:{font}">
         {t('Commission Manager — Sign In')}</div>
     </div>
     """)
