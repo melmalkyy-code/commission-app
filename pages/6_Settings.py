@@ -13,7 +13,7 @@ from src.models import (
     get_tiers, add_tier, update_tier, set_tier_target, delete_tier,
     get_categories, add_category, update_category, delete_category,
     get_brackets, add_bracket, update_bracket, delete_bracket,
-    get_kpi_items, add_kpi_item, delete_kpi_item, set_kpi_linked_category,
+    get_kpi_items, add_kpi_item, update_kpi_item, delete_kpi_item, set_kpi_linked_category,
     get_multiplier_rules, add_multiplier_rule, delete_multiplier_rule,
     get_periods, lock_period, unlock_period, log_action, get_or_create_period,
 )
@@ -426,66 +426,40 @@ with tabs[6]:
     if kpi_items and abs(total_wt - 100) > 0.01:
         st.warning(t("Active KPI weights total {total_wt:.1f}% (should be 100%).").format(total_wt=total_wt))
 
-    # ── Add form (always visible at top) ─────────────────────────────────────
-    with st.form("add_kpi_form", clear_on_submit=True):
-        ac = st.columns([3, 1.2, 1.2, 0.9, 1.8])
-        kpi_name = ac[0].text_input(t("Name *"), key="new_kpi_name")
-        kpi_wt   = ac[1].number_input("Weight %", min_value=0.0, max_value=100.0, step=1.0, value=10.0, key="new_kpi_wt")
-        kpi_max  = ac[2].number_input(t("Max Score"), min_value=1.0, step=10.0, value=100.0, key="new_kpi_max")
-        kpi_sort = ac[3].number_input(t("Sort"), min_value=0, step=1, value=len(kpi_items), key="new_kpi_sort")
-        ac[4].markdown("<div style='height:27px'></div>", unsafe_allow_html=True)
-        if ac[4].form_submit_button(f"＋ {t('Add KPI Item')}", type="primary", use_container_width=True) and kpi_name:
-            if _save(add_kpi_item, kpi_name, kpi_wt, kpi_max, kpi_sort, ok=f"'{kpi_name}' added.") is not None:
-                st.rerun()
+    with st.expander(f"＋ {t('Add KPI Item')}", expanded=not bool(kpi_items)):
+        with st.form("add_kpi_form", clear_on_submit=True):
+            c1, c2, c3, c4 = st.columns([3, 1.5, 1.5, 1])
+            kpi_name = c1.text_input(t("Name *"), key="new_kpi_name")
+            kpi_wt   = c2.number_input("Weight %", min_value=0.0, max_value=100.0, step=1.0, value=10.0, key="new_kpi_wt")
+            kpi_max  = c3.number_input(t("Max Score"), min_value=1.0, step=10.0, value=100.0, key="new_kpi_max")
+            kpi_sort = c4.number_input(t("Sort"), min_value=0, step=1, value=len(kpi_items), key="new_kpi_sort")
+            if st.form_submit_button(f"＋ {t('Add KPI Item')}", type="primary") and kpi_name:
+                if _save(add_kpi_item, kpi_name, kpi_wt, kpi_max, kpi_sort, ok=f"'{kpi_name}' added.") is not None:
+                    st.rerun()
 
-    # ── KPI table with inline Edit / Delete ──────────────────────────────────
     if not kpi_items:
         st.info(t("No KPI items yet. Add one above."))
-    else:
-        hc = st.columns([3, 1.2, 1.2, 0.9, 1, 0.8, 0.8])
-        for col, lbl in zip(hc, [t("Name"), "Weight %", t("Max Score"), t("Sort"), t("Active"), "", ""]):
-            col.markdown(f"<small><b>{lbl}</b></small>", unsafe_allow_html=True)
-        st.divider()
-
-        _editing_kpi = st.session_state.get('_kpi_edit_id')
-        for item in kpi_items:
-            if _editing_kpi == item['id']:
-                with st.form(f"kpi_edit_form_{item['id']}"):
-                    rc = st.columns([3, 1.2, 1.2, 0.9, 1, 0.8, 0.8])
-                    en = rc[0].text_input("", item['name'], label_visibility="collapsed", key=f"ke_n_{item['id']}")
-                    ew = rc[1].number_input("", min_value=0.0, max_value=100.0, step=1.0,
-                                            value=float(item['weight']), label_visibility="collapsed", key=f"ke_w_{item['id']}")
-                    em = rc[2].number_input("", min_value=1.0, step=10.0,
-                                            value=float(item['max_score']), label_visibility="collapsed", key=f"ke_m_{item['id']}")
-                    es = rc[3].number_input("", min_value=0, step=1,
-                                            value=int(item['sort_order']), label_visibility="collapsed", key=f"ke_s_{item['id']}")
-                    ea = rc[4].checkbox("", value=bool(item['is_active']), key=f"ke_a_{item['id']}")
-                    save_ok = rc[5].form_submit_button("✓", type="primary", use_container_width=True)
-                    cancel  = rc[6].form_submit_button("✕", use_container_width=True)
-                    if save_ok:
-                        execute("UPDATE kpi_items SET name=%s, weight=%s, max_score=%s, "
-                                "is_active=%s, sort_order=%s WHERE id=%s",
-                                (en, ew, em, int(ea), es, item['id']))
-                        st.session_state.pop('_kpi_edit_id', None)
-                        st.cache_data.clear()
-                        st.rerun()
-                    if cancel:
-                        st.session_state.pop('_kpi_edit_id', None)
-                        st.rerun()
-            else:
-                rc = st.columns([3, 1.2, 1.2, 0.9, 1, 0.8, 0.8])
-                rc[0].write(item['name'])
-                rc[1].write(f"{item['weight']:.0f}%")
-                rc[2].write(f"{item['max_score']:.0f}")
-                rc[3].write(str(item['sort_order']))
-                rc[4].write("✓" if item['is_active'] else "—")
-                if rc[5].button(t("Edit"), key=f"kpi_edit_btn_{item['id']}", use_container_width=True):
-                    st.session_state['_kpi_edit_id'] = item['id']
+    for _ki, item in enumerate(kpi_items):
+        status_lbl = t("Active") if item['is_active'] else t("Inactive")
+        with st.expander(f"[{status_lbl}] {item['name']} — {item['weight']:.0f}%"):
+            with st.form(f"kpi_edit_{_ki}"):
+                c1, c2, c3, c4 = st.columns([3, 1.5, 1.5, 1])
+                new_name   = c1.text_input(t("Name"), item['name'], key=f"kpi_n_{_ki}")
+                new_wt     = c2.number_input("Weight %", min_value=0.0, max_value=100.0, step=1.0,
+                                             value=float(item['weight']), key=f"kpi_w_{_ki}")
+                new_max    = c3.number_input(t("Max Score"), min_value=1.0, step=10.0,
+                                             value=float(item['max_score']), key=f"kpi_m_{_ki}")
+                new_sort   = c4.number_input(t("Sort"), min_value=0, step=1,
+                                             value=int(item['sort_order']), key=f"kpi_s_{_ki}")
+                new_active = st.checkbox(t("Active"), value=bool(item['is_active']), key=f"kpi_a_{_ki}")
+                col1, col2 = st.columns(2)
+                if col1.form_submit_button(t("Save"), type="primary"):
+                    _save(update_kpi_item, item['id'], new_name, new_wt, new_max, new_active, new_sort,
+                          ok=f"'{new_name}' saved.")
                     st.rerun()
-                if rc[6].button(t("Del"), key=f"kpi_del_btn_{item['id']}", type="secondary", use_container_width=True):
+                if col2.form_submit_button(t("Delete"), type="secondary"):
                     _save(delete_kpi_item, item['id'], ok=f"Deleted '{item['name']}'.")
                     st.rerun()
-            st.divider()
 
     # ── Category auto-link ────────────────────────────────────────────────────
     st.markdown(f"### {t('Auto-Score from Category Achievement %')}")

@@ -10,50 +10,61 @@ _FONT    = "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;
 _FONT_AR = "https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700&display=swap"
 
 # SE logo SVG — white+gold version for dark backgrounds (sidebar, login card)
+# Matches the letterhead: navy circle, gold arcs top-right + bottom-left,
+# white total station on tripod at center, inner crosshair ring marks.
 _LOGO_SVG_DARK = (
-    "<svg width='48' height='48' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg' "
+    "<svg width='56' height='56' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg' "
     "style='display:block;margin:0 auto 8px'>"
-    # Compass points — white
-    "<polygon points='50,1 44,20 56,20' fill='white'/>"
-    "<polygon points='50,99 44,80 56,80' fill='white'/>"
-    "<polygon points='1,50 20,44 20,56' fill='white'/>"
-    "<polygon points='99,50 80,44 80,56' fill='white'/>"
-    # Ring — white stroke, dark fill so instrument reads on top
-    "<circle cx='50' cy='50' r='26' fill='#1a2b38' stroke='white' stroke-width='4'/>"
-    # Gold arcs — top-right and bottom-left quadrants
-    "<path d='M 50,24 A 26,26 0 0,1 76,50' fill='none' stroke='#f6ba3b' stroke-width='8'/>"
-    "<path d='M 50,76 A 26,26 0 0,1 24,50' fill='none' stroke='#f6ba3b' stroke-width='8'/>"
-    # Surveying instrument — body
-    "<rect x='43' y='34' width='14' height='12' rx='3' fill='white'/>"
-    # Lens aperture
-    "<circle cx='50' cy='40' r='3.5' fill='none' stroke='#1a2b38' stroke-width='1.5'/>"
+    # Navy filled circle (the logo background disc)
+    "<circle cx='50' cy='50' r='44' fill='#1a2b38'/>"
+    # Outer white ring outline
+    "<circle cx='50' cy='50' r='44' fill='none' stroke='rgba(255,255,255,0.25)' stroke-width='2'/>"
+    # Inner ring (target reticle detail)
+    "<circle cx='50' cy='50' r='28' fill='none' stroke='rgba(255,255,255,0.18)' stroke-width='1'/>"
+    # Gold arcs — top-right quadrant
+    "<path d='M 50,6 A 44,44 0 0,1 94,50' fill='none' stroke='#f6ba3b' stroke-width='6' stroke-linecap='round'/>"
+    # Gold arcs — bottom-left quadrant
+    "<path d='M 50,94 A 44,44 0 0,1 6,50' fill='none' stroke='#f6ba3b' stroke-width='6' stroke-linecap='round'/>"
+    # Crosshair tick marks (white lines from inner ring to outer ring)
+    "<line x1='50' y1='6'  x2='50' y2='22' stroke='white' stroke-width='2'/>"
+    "<line x1='50' y1='78' x2='50' y2='94' stroke='white' stroke-width='2'/>"
+    "<line x1='6'  y1='50' x2='22' y2='50' stroke='white' stroke-width='2'/>"
+    "<line x1='78' y1='50' x2='94' y2='50' stroke='white' stroke-width='2'/>"
+    # Total station instrument body
+    "<rect x='42' y='30' width='16' height='13' rx='3' fill='white'/>"
+    # Lens aperture circle
+    "<circle cx='50' cy='36' r='4' fill='none' stroke='#1a2b38' stroke-width='2'/>"
+    "<circle cx='50' cy='36' r='1.5' fill='#1a2b38'/>"
     # Tripod stem
-    "<line x1='50' y1='46' x2='50' y2='57' stroke='white' stroke-width='2.5'/>"
-    # Tripod legs
-    "<line x1='50' y1='55' x2='42' y2='64' stroke='white' stroke-width='2'/>"
-    "<line x1='50' y1='55' x2='58' y2='64' stroke='white' stroke-width='2'/>"
-    # Cross bar
-    "<line x1='43' y1='52' x2='57' y2='52' stroke='white' stroke-width='1.5'/>"
+    "<line x1='50' y1='43' x2='50' y2='60' stroke='white' stroke-width='2.5'/>"
+    # Cross bar on tripod
+    "<line x1='42' y1='53' x2='58' y2='53' stroke='white' stroke-width='1.5'/>"
+    # Tripod legs (spread from crossbar)
+    "<line x1='50' y1='58' x2='39' y2='70' stroke='white' stroke-width='2'/>"
+    "<line x1='50' y1='58' x2='61' y2='70' stroke='white' stroke-width='2'/>"
     "</svg>"
 )
 
 # SE logo SVG — navy+gold version for light/white backgrounds
 _LOGO_SVG_LIGHT = (
-    "<svg width='56' height='56' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg' "
+    "<svg width='64' height='64' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg' "
     "style='display:block;margin:0 auto 12px'>"
-    "<polygon points='50,1 44,20 56,20' fill='#1a2b38'/>"
-    "<polygon points='50,99 44,80 56,80' fill='#1a2b38'/>"
-    "<polygon points='1,50 20,44 20,56' fill='#1a2b38'/>"
-    "<polygon points='99,50 80,44 80,56' fill='#1a2b38'/>"
-    "<circle cx='50' cy='50' r='26' fill='#1a2b38' stroke='#1a2b38' stroke-width='4'/>"
-    "<path d='M 50,24 A 26,26 0 0,1 76,50' fill='none' stroke='#f6ba3b' stroke-width='8'/>"
-    "<path d='M 50,76 A 26,26 0 0,1 24,50' fill='none' stroke='#f6ba3b' stroke-width='8'/>"
-    "<rect x='43' y='34' width='14' height='12' rx='3' fill='white'/>"
-    "<circle cx='50' cy='40' r='3.5' fill='none' stroke='#1a2b38' stroke-width='1.5'/>"
-    "<line x1='50' y1='46' x2='50' y2='57' stroke='white' stroke-width='2.5'/>"
-    "<line x1='50' y1='55' x2='42' y2='64' stroke='white' stroke-width='2'/>"
-    "<line x1='50' y1='55' x2='58' y2='64' stroke='white' stroke-width='2'/>"
-    "<line x1='43' y1='52' x2='57' y2='52' stroke='white' stroke-width='1.5'/>"
+    "<circle cx='50' cy='50' r='44' fill='#1a2b38'/>"
+    "<circle cx='50' cy='50' r='44' fill='none' stroke='rgba(255,255,255,0.25)' stroke-width='2'/>"
+    "<circle cx='50' cy='50' r='28' fill='none' stroke='rgba(255,255,255,0.18)' stroke-width='1'/>"
+    "<path d='M 50,6 A 44,44 0 0,1 94,50' fill='none' stroke='#f6ba3b' stroke-width='6' stroke-linecap='round'/>"
+    "<path d='M 50,94 A 44,44 0 0,1 6,50' fill='none' stroke='#f6ba3b' stroke-width='6' stroke-linecap='round'/>"
+    "<line x1='50' y1='6'  x2='50' y2='22' stroke='white' stroke-width='2'/>"
+    "<line x1='50' y1='78' x2='50' y2='94' stroke='white' stroke-width='2'/>"
+    "<line x1='6'  y1='50' x2='22' y2='50' stroke='white' stroke-width='2'/>"
+    "<line x1='78' y1='50' x2='94' y2='50' stroke='white' stroke-width='2'/>"
+    "<rect x='42' y='30' width='16' height='13' rx='3' fill='white'/>"
+    "<circle cx='50' cy='36' r='4' fill='none' stroke='#1a2b38' stroke-width='2'/>"
+    "<circle cx='50' cy='36' r='1.5' fill='#1a2b38'/>"
+    "<line x1='50' y1='43' x2='50' y2='60' stroke='white' stroke-width='2.5'/>"
+    "<line x1='42' y1='53' x2='58' y2='53' stroke='white' stroke-width='1.5'/>"
+    "<line x1='50' y1='58' x2='39' y2='70' stroke='white' stroke-width='2'/>"
+    "<line x1='50' y1='58' x2='61' y2='70' stroke='white' stroke-width='2'/>"
     "</svg>"
 )
 

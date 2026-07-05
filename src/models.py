@@ -187,6 +187,14 @@ def add_kpi_item(name: str, weight: float, max_score: float, sort_order: int = 0
     )
 
 
+def update_kpi_item(item_id: int, name: str, weight: float, max_score: float,
+                    is_active: bool, sort_order: int):
+    execute(
+        "UPDATE kpi_items SET name=%s, weight=%s, max_score=%s, is_active=%s, sort_order=%s WHERE id=%s",
+        (name, weight, max_score, int(is_active), sort_order, item_id),
+    )
+
+
 def delete_kpi_item(item_id: int):
     execute("DELETE FROM kpi_items WHERE id=%s", (item_id,))
 

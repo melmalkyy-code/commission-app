@@ -343,6 +343,24 @@ def make_excel_salesperson(c: dict, lang: str = 'en') -> bytes:
     return buf.getvalue()
 
 
+# ─── Letterhead helpers ──────────────────────────────────────────────────────
+_LH_PATH = os.path.join(os.path.dirname(__file__), '..', 'assets', 'letterhead.png')
+
+
+def _draw_page_bg(canvas, doc):
+    """Draw the company letterhead as full-page background on every page."""
+    from reportlab.lib.pagesizes import A4
+    w, h = A4
+    canvas.saveState()
+    if os.path.exists(_LH_PATH):
+        canvas.drawImage(_LH_PATH, 0, 0, width=w, height=h,
+                         preserveAspectRatio=False)
+    canvas.setFont('Helvetica', 7)
+    canvas.setFillColorRGB(0.4, 0.4, 0.4)
+    canvas.drawCentredString(w / 2, 22, f"Page {doc.page}")
+    canvas.restoreState()
+
+
 # ─── Company PDF ─────────────────────────────────────────────────────────────
 def make_pdf_company(lang: str = 'en') -> bytes:
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
@@ -356,8 +374,8 @@ def make_pdf_company(lang: str = 'en') -> bytes:
     _fnb = pdf_font_bold(lang)
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4,
-                            leftMargin=40, rightMargin=40,
-                            topMargin=50, bottomMargin=50)
+                            leftMargin=50, rightMargin=50,
+                            topMargin=88, bottomMargin=100)
     styles = getSampleStyleSheet()
     pc = HexColor(PRIMARY)
     story = []
@@ -370,8 +388,8 @@ def make_pdf_company(lang: str = 'en') -> bytes:
                                fontName=_fnb, textColor=pc,
                                spaceBefore=12, spaceAfter=6)
 
-    story.append(Paragraph(_c(COMPANY), title_st))
-    story.append(Paragraph(_c(f"{_t('Commission Summary')} | {period_label}"), sub_st))
+    story.append(Paragraph(_c(f"{_t('Commission Summary')} — {period_label}"), title_st))
+    story.append(Paragraph(_c(COMPANY), sub_st))
     story.append(HRFlowable(width="100%", thickness=2, color=pc))
     story.append(Spacer(1, 10))
 
@@ -426,7 +444,7 @@ def make_pdf_company(lang: str = 'en') -> bytes:
     ]))
     story.append(sp_tbl)
 
-    doc.build(story)
+    doc.build(story, onFirstPage=_draw_page_bg, onLaterPages=_draw_page_bg)
     return buf.getvalue()
 
 
@@ -443,8 +461,8 @@ def make_pdf_branch(branch_name: str, persons: list, lang: str = 'en') -> bytes:
     _fnb = pdf_font_bold(lang)
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4,
-                            leftMargin=40, rightMargin=40,
-                            topMargin=50, bottomMargin=50)
+                            leftMargin=50, rightMargin=50,
+                            topMargin=88, bottomMargin=100)
     styles = getSampleStyleSheet()
     pc = HexColor(PRIMARY)
     ac = HexColor(ACCENT)
@@ -458,9 +476,8 @@ def make_pdf_branch(branch_name: str, persons: list, lang: str = 'en') -> bytes:
                                fontName=_fnb, textColor=pc,
                                spaceBefore=12, spaceAfter=6)
 
-    story.append(Paragraph(_c(COMPANY), title_st))
-    story.append(Paragraph(
-        _c(f"{_t('Branch Report')} | {branch_name} | {period_label}"), sub_st))
+    story.append(Paragraph(_c(f"{_t('Branch Report')} — {branch_name} | {period_label}"), title_st))
+    story.append(Paragraph(_c(COMPANY), sub_st))
     story.append(HRFlowable(width="100%", thickness=2, color=pc))
     story.append(Spacer(1, 10))
 
@@ -504,7 +521,7 @@ def make_pdf_branch(branch_name: str, persons: list, lang: str = 'en') -> bytes:
     ]))
     story.append(tbl)
 
-    doc.build(story)
+    doc.build(story, onFirstPage=_draw_page_bg, onLaterPages=_draw_page_bg)
     return buf.getvalue()
 
 
@@ -522,8 +539,8 @@ def make_pdf_salesperson(c: dict, lang: str = 'en') -> bytes:
     _fnb = pdf_font_bold(lang)
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4,
-                            leftMargin=40, rightMargin=40,
-                            topMargin=50, bottomMargin=50)
+                            leftMargin=50, rightMargin=50,
+                            topMargin=88, bottomMargin=100)
     styles = getSampleStyleSheet()
     pc = HexColor(PRIMARY)
     ac = HexColor(ACCENT)
@@ -652,7 +669,7 @@ def make_pdf_salesperson(c: dict, lang: str = 'en') -> bytes:
         ]))
         story.append(qtbl)
 
-    doc.build(story)
+    doc.build(story, onFirstPage=_draw_page_bg, onLaterPages=_draw_page_bg)
     return buf.getvalue()
 
 
