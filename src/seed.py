@@ -75,8 +75,8 @@ def _seed_tiers():
 
 
 def _seed_branches():
-    for name, city in [('Riyadh', 'Riyadh'), ('Jeddah', 'Jeddah'), ('Dammam', 'Dammam')]:
-        _ins_ignore('branches', ['name', 'city'], [name, city], 'name')
+    for name, region in [('Riyadh', 'Central Region'), ('Jeddah', 'Western Region'), ('Dammam', 'Eastern Region')]:
+        _ins_ignore('branches', ['name', 'region'], [name, region], 'name')
 
 
 def _seed_kpi():
