@@ -2,8 +2,45 @@ from __future__ import annotations
 from src.db import execute, fetchone, fetchall, is_postgres
 
 
+_SEED_MARKER = '_initial_seed_done'
+
+
+def _already_seeded() -> bool:
+    """True if this database has already been populated once.
+
+    Sample/reference data (branches, categories, tiers, salespersons, KPI,
+    brackets, sample records) must be inserted ONLY on a brand-new database.
+    Otherwise deleting a default row (e.g. a branch) just brings it back on the
+    next startup, because the inserts use ON CONFLICT DO NOTHING. This checks
+    an explicit marker first, then falls back to detecting a pre-existing
+    (pre-marker) database that already contains reference data.
+    """
+    row = fetchone("SELECT value FROM settings WHERE key=%s", (_SEED_MARKER,))
+    if row and str(row['value']) == '1':
+        return True
+    for tbl in ('categories', 'target_tiers', 'salespersons', 'branches'):
+        r = fetchone(f"SELECT COUNT(*) AS c FROM {tbl}", ())
+        if r and r['c'] and r['c'] > 0:
+            return True
+    return False
+
+
+def _mark_seeded():
+    _ins_ignore('settings', ['key', 'value'], [_SEED_MARKER, '1'], 'key')
+
+
 def seed():
+    # Always: app config defaults (fills only missing keys) + an admin to log in
     _seed_settings()
+    from src.auth import ensure_default_admin
+    ensure_default_admin()
+
+    # One-time only: sample/reference data. Once the DB has been initialised,
+    # respect the user's deletions and never re-insert defaults.
+    if _already_seeded():
+        _mark_seeded()   # stamp pre-marker databases so this is fast next time
+        return
+
     _seed_categories()
     _seed_tiers()
     _seed_branches()
@@ -12,8 +49,7 @@ def seed():
     _seed_salespersons()
     _seed_period()
     _seed_sample_data()
-    from src.auth import ensure_default_admin
-    ensure_default_admin()
+    _mark_seeded()
 
 
 def _ins_ignore(table, cols, vals, conflict_col=None):
