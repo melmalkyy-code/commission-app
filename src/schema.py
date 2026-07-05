@@ -10,6 +10,18 @@ def _upsert_ignore() -> str:
     return "ON CONFLICT DO NOTHING" if is_postgres() else "OR IGNORE"
 
 
+def _ddl(sql: str):
+    """Run a DDL statement directly on the raw connection — never falls back to SQLite.
+    Use this for migrations so a PG failure doesn't silently switch the thread to SQLite."""
+    from src.db import get_conn
+    try:
+        conn = get_conn()
+        cur  = conn.cursor()
+        cur.execute(sql)
+    except Exception:
+        pass  # idempotent — failure means already applied or not applicable
+
+
 TABLES = [
     """CREATE TABLE IF NOT EXISTS settings (
         key   TEXT PRIMARY KEY,
@@ -155,26 +167,12 @@ TABLES = [
 ]
 
 
-def _add_column_if_missing(table: str, column: str, col_type: str):
-    try:
-        execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
-    except Exception:
-        pass  # column already exists
-
-
-def _rename_column_if_exists(table: str, old_col: str, new_col: str):
-    try:
-        execute(f"ALTER TABLE {table} RENAME COLUMN {old_col} TO {new_col}")
-    except Exception:
-        pass  # already renamed or column doesn't exist
-
-
 def create_schema():
     serial_def = "SERIAL PRIMARY KEY" if is_postgres() else "INTEGER PRIMARY KEY AUTOINCREMENT"
     for tbl in TABLES:
         sql = tbl.replace("{serial}", serial_def)
         execute(sql)
-    # Migrations — idempotent
-    _add_column_if_missing("kpi_items", "linked_category_id", "INTEGER")
-    _rename_column_if_exists("branches", "city", "region")
+    # Migrations — use _ddl() so failures don't trigger SQLite fallback
+    _ddl("ALTER TABLE kpi_items ADD COLUMN linked_category_id INTEGER")
+    _ddl("ALTER TABLE branches RENAME COLUMN city TO region")
 
