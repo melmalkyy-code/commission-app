@@ -151,7 +151,8 @@ def _show_login():
     font   = "'Cairo',system-ui,sans-serif" if rtl else "'IBM Plex Sans',system-ui,sans-serif"
     align  = 'right' if rtl else 'left'
 
-    # Full-page styles: gradient background + block-container as the login card
+    # Single st.html() call — CSS + header in one block to avoid rerun loops
+    # (multiple st.html() elements each fire resize events that trigger reruns)
     st.html(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;700&display=swap');
@@ -165,8 +166,6 @@ def _show_login():
         background: linear-gradient(145deg, {primary} 0%, #1a2b38 55%, #0e1c27 100%) !important;
         min-height: 100vh !important;
     }}
-
-    /* The block-container IS the login card */
     .main .block-container {{
         max-width: 460px !important;
         margin: 5vh auto 0 !important;
@@ -175,8 +174,6 @@ def _show_login():
         border-radius: 20px !important;
         box-shadow: 0 28px 80px rgba(0,0,0,0.35) !important;
     }}
-
-    /* Language pill buttons */
     .stButton > button {{
         border-radius: 20px !important;
         font-size: 12px !important;
@@ -185,8 +182,6 @@ def _show_login():
         font-family: {font} !important;
         min-height: 32px !important;
     }}
-
-    /* Input labels */
     [data-testid="stTextInput"] label,
     [data-testid="stWidgetLabel"] {{
         font-size: 13px !important;
@@ -196,8 +191,6 @@ def _show_login():
         direction: {dir_s} !important;
         text-align: {align} !important;
     }}
-
-    /* Input fields */
     [data-baseweb="input"] input {{
         border-radius: 10px !important;
         font-size: 15px !important;
@@ -205,16 +198,12 @@ def _show_login():
         padding: 12px 14px !important;
         direction: {dir_s} !important;
     }}
-
-    /* Remove default form border/bg */
     .stForm {{
         border: none !important;
         padding: 0 !important;
         background: transparent !important;
         box-shadow: none !important;
     }}
-
-    /* Sign In submit button */
     [data-testid="stFormSubmitButton"] > button {{
         background: {primary} !important;
         border-color: {primary} !important;
@@ -227,27 +216,14 @@ def _show_login():
         margin-top: 6px !important;
         font-family: {font} !important;
         letter-spacing: 0.02em !important;
-        transition: all 0.15s ease !important;
     }}
-    [data-testid="stFormSubmitButton"] > button:hover {{
-        background: #243949 !important;
-        border-color: #243949 !important;
-        transform: translateY(-1px) !important;
-        box-shadow: 0 6px 20px rgba(53,79,97,0.35) !important;
-    }}
-
-    /* Alert / error */
     [data-testid="stAlert"] {{
         border-radius: 10px !important;
         font-family: {font} !important;
         direction: {dir_s} !important;
     }}
     </style>
-    """)
-
-    # ── Logo + company header ─────────────────────────────────────────────────
-    st.html(f"""
-    <div style="text-align:center;padding:4px 0 28px;direction:{dir_s}">
+    <div style="text-align:center;padding:4px 0 24px;direction:{dir_s}">
       <div style="display:inline-flex;align-items:center;justify-content:center;
           width:56px;height:56px;background:{primary};border-radius:16px;
           margin-bottom:16px;box-shadow:0 6px 20px rgba(53,79,97,0.30)">
@@ -273,7 +249,7 @@ def _show_login():
             st.session_state[_LANG_KEY] = 'ar'
             st.rerun()
 
-    st.html("<div style='height:12px'></div>")
+    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
     # ── Login form ────────────────────────────────────────────────────────────
     with st.form("login_form", clear_on_submit=False):

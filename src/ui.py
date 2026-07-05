@@ -325,18 +325,20 @@ def page_header(title: str, subtitle: str = "", primary: str = "#354f61") -> Non
     """Render a consistent SE-branded page header."""
     rtl   = is_rtl()
     align = "right" if rtl else "left"
-    dir_s = "direction:rtl;" if rtl else ""
+    dir_s = "rtl"   if rtl else "ltr"
     font  = "'Cairo',system-ui,sans-serif" if rtl else "'IBM Plex Sans',system-ui,sans-serif"
     sub_html = (
         f"<p style='color:#6b757d;margin:2px 0 0;font-size:14px;"
-        f"text-align:{align};{dir_s}font-family:{font}'>{subtitle}</p>"
+        f"text-align:{align};direction:{dir_s};font-family:{font}'>{subtitle}</p>"
     ) if subtitle else ""
-    st.html(
-        f"<div style='margin-bottom:1.5rem;{dir_s}text-align:{align}'>"
+    # Use st.markdown (not st.html) — avoids duplicate resize-event reruns
+    st.markdown(
+        f"<div style='margin-bottom:1.5rem;direction:{dir_s};text-align:{align}'>"
         f"<h1 style='color:{primary};margin:0;font-size:26px;font-weight:700;"
-        f"letter-spacing:-0.02em;font-family:{font};text-align:{align};{dir_s}'>{title}</h1>"
+        f"letter-spacing:-0.02em;font-family:{font};text-align:{align}'>{title}</h1>"
         f"{sub_html}"
-        f"</div>"
+        f"</div>",
+        unsafe_allow_html=True,
     )
 
 
