@@ -66,7 +66,7 @@ def ensure_default_admin() -> None:
 
 # ── Session / cookie helpers ──────────────────────────────────────────────────
 _COOKIE_NAME = "commission_auth"
-_SESSION_DAYS = 30
+_SESSION_DAYS = 365  # 1 year; rolling — extended on every access
 
 
 def _create_session(user_id: int, username: str) -> str:
@@ -97,6 +97,9 @@ def _validate_session(token: str) -> dict | None:
             return None
     except Exception:
         pass
+    # Rolling expiry — extend the session every time it is used
+    new_expires = (datetime.datetime.now() + datetime.timedelta(days=_SESSION_DAYS)).isoformat()
+    execute("UPDATE sessions SET expires_at=%s WHERE token=%s", (new_expires, token))
     return row
 
 
