@@ -421,71 +421,83 @@ with tabs[5]:
 with tabs[6]:
     st.markdown(f"### {t('KPI Items & Weights')}")
 
-    with st.expander(t("Add New KPI Item")):
-        with st.form("add_kpi_form"):
-            c1, c2, c3, c4 = st.columns(4)
-            kpi_name = c1.text_input(t("Name *"),      key="new_kpi_name")
-            kpi_wt   = c2.number_input("Weight %",  min_value=0.0, max_value=100.0, step=1.0, value=10.0, key="new_kpi_wt")
-            kpi_max  = c3.number_input(t("Max Score"), min_value=1.0, step=10.0, value=100.0,               key="new_kpi_max")
-            kpi_sort = c4.number_input(t("Sort Order"), min_value=0, step=1, value=0,                        key="new_kpi_sort")
-            if st.form_submit_button(t("Add KPI Item"), type="primary") and kpi_name:
-                if _save(add_kpi_item, kpi_name, kpi_wt, kpi_max, kpi_sort,
-                         ok=f"'{kpi_name}' added.") is not None:
-                    st.rerun()
-
     kpi_items = get_kpi_items()
     total_wt  = sum(i['weight'] for i in kpi_items if i['is_active'])
-    if abs(total_wt - 100) > 0.01:
+    if kpi_items and abs(total_wt - 100) > 0.01:
         st.warning(t("Active KPI weights total {total_wt:.1f}% (should be 100%).").format(total_wt=total_wt))
 
-    if kpi_items:
-        _kn = t("Name"); _kw = "Weight %"; _km = t("Max Score")
-        _ka = t("Active"); _ks = t("Sort")
-        kpi_df = pd.DataFrame([{
-            "ID": i['id'], _kn: i['name'], _kw: i['weight'],
-            _km: i['max_score'], _ka: bool(i['is_active']),
-            _ks: i['sort_order'],
-        } for i in kpi_items])
-        edited_kpi = st.data_editor(
-            kpi_df, use_container_width=True, hide_index=True,
-            disabled=["ID"], key="kpi_editor",
-        )
-        if st.button(t("Save KPI Items"), type="primary", key="save_kpi"):
-            for _, row in edited_kpi.iterrows():
-                execute(
-                    "UPDATE kpi_items SET name=%s, weight=%s, max_score=%s, "
-                    "is_active=%s, sort_order=%s WHERE id=%s",
-                    (row[_kn], row[_kw], row[_km],
-                     int(row[_ka]), int(row[_ks]), int(row['ID'])),
-                )
-            st.cache_data.clear()
-            st.success(t("KPI items saved."))
-            st.rerun()
-
-        _sel_sentinel = t("-- select --")
-        del_kpi = st.selectbox(
-            t("Delete a KPI item"),
-            [_sel_sentinel] + [i['name'] for i in kpi_items],
-            key="del_kpi_sel",
-        )
-        if del_kpi != _sel_sentinel:
-            item_to_del = next((i for i in kpi_items if i['name'] == del_kpi), None)
-            if item_to_del and st.button(f"Delete '{del_kpi}'", type="secondary", key="do_del_kpi"):
-                _save(delete_kpi_item, item_to_del['id'], ok=f"Deleted '{del_kpi}'.")
+    # ── Add form (always visible at top) ─────────────────────────────────────
+    with st.form("add_kpi_form", clear_on_submit=True):
+        ac = st.columns([3, 1.2, 1.2, 0.9, 1.8])
+        kpi_name = ac[0].text_input(t("Name *"), key="new_kpi_name")
+        kpi_wt   = ac[1].number_input("Weight %", min_value=0.0, max_value=100.0, step=1.0, value=10.0, key="new_kpi_wt")
+        kpi_max  = ac[2].number_input(t("Max Score"), min_value=1.0, step=10.0, value=100.0, key="new_kpi_max")
+        kpi_sort = ac[3].number_input(t("Sort"), min_value=0, step=1, value=len(kpi_items), key="new_kpi_sort")
+        ac[4].markdown("<div style='height:27px'></div>", unsafe_allow_html=True)
+        if ac[4].form_submit_button(f"＋ {t('Add KPI Item')}", type="primary", use_container_width=True) and kpi_name:
+            if _save(add_kpi_item, kpi_name, kpi_wt, kpi_max, kpi_sort, ok=f"'{kpi_name}' added.") is not None:
                 st.rerun()
 
-    # Category auto-link
-    st.divider()
+    # ── KPI table with inline Edit / Delete ──────────────────────────────────
+    if not kpi_items:
+        st.info(t("No KPI items yet. Add one above."))
+    else:
+        hc = st.columns([3, 1.2, 1.2, 0.9, 1, 0.8, 0.8])
+        for col, lbl in zip(hc, [t("Name"), "Weight %", t("Max Score"), t("Sort"), t("Active"), "", ""]):
+            col.markdown(f"<small><b>{lbl}</b></small>", unsafe_allow_html=True)
+        st.divider()
+
+        _editing_kpi = st.session_state.get('_kpi_edit_id')
+        for item in kpi_items:
+            if _editing_kpi == item['id']:
+                with st.form(f"kpi_edit_form_{item['id']}"):
+                    rc = st.columns([3, 1.2, 1.2, 0.9, 1, 0.8, 0.8])
+                    en = rc[0].text_input("", item['name'], label_visibility="collapsed", key=f"ke_n_{item['id']}")
+                    ew = rc[1].number_input("", min_value=0.0, max_value=100.0, step=1.0,
+                                            value=float(item['weight']), label_visibility="collapsed", key=f"ke_w_{item['id']}")
+                    em = rc[2].number_input("", min_value=1.0, step=10.0,
+                                            value=float(item['max_score']), label_visibility="collapsed", key=f"ke_m_{item['id']}")
+                    es = rc[3].number_input("", min_value=0, step=1,
+                                            value=int(item['sort_order']), label_visibility="collapsed", key=f"ke_s_{item['id']}")
+                    ea = rc[4].checkbox("", value=bool(item['is_active']), key=f"ke_a_{item['id']}")
+                    save_ok = rc[5].form_submit_button("✓", type="primary", use_container_width=True)
+                    cancel  = rc[6].form_submit_button("✕", use_container_width=True)
+                    if save_ok:
+                        execute("UPDATE kpi_items SET name=%s, weight=%s, max_score=%s, "
+                                "is_active=%s, sort_order=%s WHERE id=%s",
+                                (en, ew, em, int(ea), es, item['id']))
+                        st.session_state.pop('_kpi_edit_id', None)
+                        st.cache_data.clear()
+                        st.rerun()
+                    if cancel:
+                        st.session_state.pop('_kpi_edit_id', None)
+                        st.rerun()
+            else:
+                rc = st.columns([3, 1.2, 1.2, 0.9, 1, 0.8, 0.8])
+                rc[0].write(item['name'])
+                rc[1].write(f"{item['weight']:.0f}%")
+                rc[2].write(f"{item['max_score']:.0f}")
+                rc[3].write(str(item['sort_order']))
+                rc[4].write("✓" if item['is_active'] else "—")
+                if rc[5].button(t("Edit"), key=f"kpi_edit_btn_{item['id']}", use_container_width=True):
+                    st.session_state['_kpi_edit_id'] = item['id']
+                    st.rerun()
+                if rc[6].button(t("Del"), key=f"kpi_del_btn_{item['id']}", type="secondary", use_container_width=True):
+                    _save(delete_kpi_item, item['id'], ok=f"Deleted '{item['name']}'.")
+                    st.rerun()
+            st.divider()
+
+    # ── Category auto-link ────────────────────────────────────────────────────
     st.markdown(f"### {t('Auto-Score from Category Achievement %')}")
     st.caption(t(
         "Link a KPI item to a sales category — score is computed automatically "
         "from Actual / Target x 100 (capped at 100). "
         "Linked items do NOT appear in the manual KPI entry table."
     ))
-    cats_lnk        = get_categories(active_only=True)
-    cat_name_to_id  = {c['name']: c['id'] for c in cats_lnk}
-    _manual_opt     = t("Manual - Enter Score")
-    cat_options     = [_manual_opt] + [c['name'] for c in cats_lnk]
+    cats_lnk       = get_categories(active_only=True)
+    cat_name_to_id = {c['name']: c['id'] for c in cats_lnk}
+    _manual_opt    = t("Manual - Enter Score")
+    cat_options    = [_manual_opt] + [c['name'] for c in cats_lnk]
 
     with st.form("kpi_links_form"):
         link_selections = {}
@@ -508,61 +520,67 @@ with tabs[6]:
             st.success(t("Category links saved."))
             st.rerun()
 
-    # Multiplier rules
+    # ── KPI Multiplier Rules ──────────────────────────────────────────────────
     st.divider()
     st.markdown(f"### {t('KPI Multiplier Rules')}")
 
-    with st.expander(t("Add New Multiplier Rule")):
-        with st.form("add_rule_form"):
-            c1, c2, c3, c4 = st.columns(4)
-            r_from  = c1.number_input(t("Score From"), min_value=0.0, step=5.0,  value=0.0,  key="new_rule_from")
-            r_to    = c2.number_input(t("Score To"),   min_value=0.0, step=5.0,  value=80.0, key="new_rule_to")
-            r_mult  = c3.number_input(t("Multiplier"), min_value=0.0, step=0.05, value=1.0,  key="new_rule_mult")
-            r_unlim = c4.checkbox(t("Unlimited (no upper bound)"), key="new_rule_unlim")
-            if st.form_submit_button(t("Add Rule"), type="primary"):
-                _save(add_multiplier_rule, r_from,
-                      None if r_unlim else r_to, r_mult, r_unlim, ok="Rule added.")
-                st.rerun()
-
     rules = get_multiplier_rules(active_only=False)
-    if rules:
-        _rsf = t("Score From"); _rst = t("Score To")
-        _rm = t("Multiplier"); _ru = t("Unlimited"); _ra = t("Active")
-        rules_df = pd.DataFrame([{
-            "ID": r['id'], _rsf: r['score_from'],
-            _rst: r['score_to'] or 999,
-            _rm: r['multiplier'],
-            _ru: bool(r['is_unlimited']),
-            _ra: bool(r['is_active']),
-        } for r in rules])
-        edited_rules = st.data_editor(
-            rules_df, use_container_width=True, hide_index=True,
-            disabled=["ID"], key="rules_editor",
-        )
-        if st.button(t("Save Multiplier Rules"), type="primary", key="save_rules"):
-            for _, row in edited_rules.iterrows():
-                to_val = None if row[_ru] else row[_rst]
-                execute(
-                    "UPDATE kpi_multiplier_rules SET score_from=%s, score_to=%s, "
-                    "multiplier=%s, is_unlimited=%s, is_active=%s WHERE id=%s",
-                    (row[_rsf], to_val, row[_rm],
-                     int(row[_ru]), int(row[_ra]), int(row['ID'])),
-                )
-            st.cache_data.clear()
-            st.success(t("Multiplier rules saved."))
+
+    with st.form("add_rule_form", clear_on_submit=True):
+        rc = st.columns([1.2, 1.2, 1.2, 1.5, 1.8])
+        r_from  = rc[0].number_input(t("Score From"), min_value=0.0, step=5.0,  value=0.0,  key="new_rule_from")
+        r_to    = rc[1].number_input(t("Score To"),   min_value=0.0, step=5.0,  value=80.0, key="new_rule_to")
+        r_mult  = rc[2].number_input(t("Multiplier"), min_value=0.0, step=0.05, value=1.0,  key="new_rule_mult")
+        r_unlim = rc[3].checkbox(t("No upper bound"), key="new_rule_unlim")
+        rc[4].markdown("<div style='height:27px'></div>", unsafe_allow_html=True)
+        if rc[4].form_submit_button(f"＋ {t('Add Rule')}", type="primary", use_container_width=True):
+            _save(add_multiplier_rule, r_from, None if r_unlim else r_to, r_mult, r_unlim, ok="Rule added.")
             st.rerun()
 
-        rule_labels = [
-            f"Score {r['score_from']}-{r['score_to'] or 'max'} | x{r['multiplier']}"
-            for r in rules
-        ]
-        _sel_rule_sentinel = t("-- select --")
-        del_rule = st.selectbox(t("Delete a rule"), [_sel_rule_sentinel] + rule_labels, key="del_rule_sel")
-        if del_rule != _sel_rule_sentinel:
-            idx = rule_labels.index(del_rule)
-            if st.button(t("Delete selected rule"), type="secondary", key="do_del_rule"):
-                _save(delete_multiplier_rule, rules[idx]['id'], ok="Rule deleted.")
-                st.rerun()
+    if not rules:
+        st.info(t("No multiplier rules yet."))
+    else:
+        rh = st.columns([1.2, 1.2, 1.2, 1, 1, 0.8, 0.8])
+        for col, lbl in zip(rh, [t("Score From"), t("Score To"), t("Multiplier"), t("Unlimited"), t("Active"), "", ""]):
+            col.markdown(f"<small><b>{lbl}</b></small>", unsafe_allow_html=True)
+        st.divider()
+
+        _editing_rule = st.session_state.get('_rule_edit_id')
+        for rule in rules:
+            if _editing_rule == rule['id']:
+                with st.form(f"rule_edit_form_{rule['id']}"):
+                    rc = st.columns([1.2, 1.2, 1.2, 1, 1, 0.8, 0.8])
+                    rf  = rc[0].number_input("", min_value=0.0, step=5.0, value=float(rule['score_from']), label_visibility="collapsed", key=f"re_f_{rule['id']}")
+                    rt  = rc[1].number_input("", min_value=0.0, step=5.0, value=float(rule['score_to'] or 100), label_visibility="collapsed", key=f"re_t_{rule['id']}")
+                    rm  = rc[2].number_input("", min_value=0.0, step=0.05, value=float(rule['multiplier']), label_visibility="collapsed", key=f"re_m_{rule['id']}")
+                    ru  = rc[3].checkbox("", value=bool(rule['is_unlimited']), key=f"re_u_{rule['id']}")
+                    ra  = rc[4].checkbox("", value=bool(rule['is_active']), key=f"re_a_{rule['id']}")
+                    rs  = rc[5].form_submit_button("✓", type="primary", use_container_width=True)
+                    rx  = rc[6].form_submit_button("✕", use_container_width=True)
+                    if rs:
+                        execute("UPDATE kpi_multiplier_rules SET score_from=%s, score_to=%s, "
+                                "multiplier=%s, is_unlimited=%s, is_active=%s WHERE id=%s",
+                                (rf, None if ru else rt, rm, int(ru), int(ra), rule['id']))
+                        st.session_state.pop('_rule_edit_id', None)
+                        st.cache_data.clear()
+                        st.rerun()
+                    if rx:
+                        st.session_state.pop('_rule_edit_id', None)
+                        st.rerun()
+            else:
+                rc = st.columns([1.2, 1.2, 1.2, 1, 1, 0.8, 0.8])
+                rc[0].write(f"{rule['score_from']:.0f}")
+                rc[1].write(f"{rule['score_to'] or '∞'}")
+                rc[2].write(f"×{rule['multiplier']:.2f}")
+                rc[3].write("✓" if rule['is_unlimited'] else "—")
+                rc[4].write("✓" if rule['is_active'] else "—")
+                if rc[5].button(t("Edit"), key=f"rule_edit_btn_{rule['id']}", use_container_width=True):
+                    st.session_state['_rule_edit_id'] = rule['id']
+                    st.rerun()
+                if rc[6].button(t("Del"), key=f"rule_del_btn_{rule['id']}", type="secondary", use_container_width=True):
+                    _save(delete_multiplier_rule, rule['id'], ok="Rule deleted.")
+                    st.rerun()
+            st.divider()
 
 
 # ── PERIODS ───────────────────────────────────────────────────────────────────

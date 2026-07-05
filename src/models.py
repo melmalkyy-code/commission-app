@@ -31,9 +31,9 @@ def get_branches(active_only=False) -> list[dict]:
 
 
 def add_branch(name: str, region: str) -> int:
-    cur = execute("INSERT INTO branches (name, region) VALUES (%s, %s) RETURNING id", (name, region))
-    row = cur.fetchone()
-    return row[0] if row else None
+    return execute_insert(
+        "INSERT INTO branches (name, region) VALUES (%s, %s)", (name, region)
+    )
 
 
 def update_branch(bid: int, name: str, region: str, is_active: bool):
@@ -54,9 +54,9 @@ def get_categories(active_only=False) -> list[dict]:
 
 
 def add_category(name: str, order: int = 0) -> int:
-    cur = execute("INSERT INTO categories (name, display_order) VALUES (%s, %s) RETURNING id", (name, order))
-    row = cur.fetchone()
-    return row[0] if row else None
+    return execute_insert(
+        "INSERT INTO categories (name, display_order) VALUES (%s, %s)", (name, order)
+    )
 
 
 def update_category(cid: int, name: str, order: int, in_target: bool, in_comm: bool, in_kpi: bool, is_active: bool):
@@ -82,8 +82,9 @@ def get_tiers(active_only=False) -> list[dict]:
 
 
 def add_tier(name: str, desc: str = "") -> int:
-    cur = execute("INSERT INTO target_tiers (name, description) VALUES (%s, %s) RETURNING id", (name, desc))
-    return cur.fetchone()[0]
+    return execute_insert(
+        "INSERT INTO target_tiers (name, description) VALUES (%s, %s)", (name, desc)
+    )
 
 
 def update_tier(tid: int, name: str, desc: str, is_active: bool):
@@ -123,8 +124,10 @@ def get_salespersons(active_only=False, branch_id=None) -> list[dict]:
 
 
 def add_salesperson(name: str, branch_id: int, tier_id: int, email: str = "") -> int:
-    cur = execute("INSERT INTO salespersons (name, branch_id, tier_id, email) VALUES (%s,%s,%s,%s) RETURNING id", (name, branch_id, tier_id, email))
-    return cur.fetchone()[0]
+    return execute_insert(
+        "INSERT INTO salespersons (name, branch_id, tier_id, email) VALUES (%s,%s,%s,%s)",
+        (name, branch_id, tier_id, email),
+    )
 
 
 def update_salesperson(sid: int, name: str, branch_id: int, tier_id: int, email: str, is_active: bool):
