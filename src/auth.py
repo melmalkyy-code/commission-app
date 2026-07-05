@@ -109,7 +109,7 @@ def _revoke_session(token: str):
 
 
 def _cookie_controller():
-    """Construct a fresh CookieController for the current run, or None if the
+    """Construct + mount a fresh CookieController for THIS run, or None if the
     component isn't installed.
 
     A real bidirectional component (served same-origin) is required to write a
@@ -117,9 +117,10 @@ def _cookie_controller():
     sandboxed srcDoc iframe with an opaque origin, so cookies set there never
     reach the app domain and are lost on refresh — that was the logout bug.
 
-    Constructed fresh each call, never cached across runs: it is only ever
-    used by _set_auth_cookie (login) and _clear_auth_cookie (logout), which
-    never run together, so there is at most one construction per script run.
+    Must be constructed fresh each run (so the component actually mounts in the
+    current widget tree) and at most once per run (a second construction with
+    the same key raises a duplicate-id error). The login page mounts it once at
+    the top and threads the instance into _set_auth_cookie on submit.
     """
     try:
         from streamlit_cookies_controller import CookieController
@@ -128,14 +129,23 @@ def _cookie_controller():
         return None
 
 
-def _set_auth_cookie(token: str):
-    """Persist the auth cookie on the real app domain so it survives refresh."""
-    ctrl = _cookie_controller()
+def _set_auth_cookie(token: str, ctrl=None):
+    """Persist the auth cookie on the real app domain so it survives refresh.
+
+    SameSite=Lax + Secure: Lax still sends the cookie on top-level navigations
+    (a refresh) and is more compatible across mobile / embedded contexts than
+    Strict; Secure is required by browsers for SameSite on HTTPS (Streamlit
+    Cloud is always HTTPS). `ctrl` is the already-mounted controller from the
+    login run so the write reaches a live component.
+    """
+    if ctrl is None:
+        ctrl = _cookie_controller()
     if ctrl is None:
         return
     expires = datetime.datetime.now() + datetime.timedelta(days=_SESSION_DAYS)
     try:
-        ctrl.set(_COOKIE_NAME, token, expires=expires, path='/', same_site='strict')
+        ctrl.set(_COOKIE_NAME, token, expires=expires, path='/',
+                 same_site='lax', secure=True)
     except Exception:
         try:
             ctrl.set(_COOKIE_NAME, token)
@@ -182,61 +192,79 @@ def _show_login():
     font   = "'Cairo',system-ui,sans-serif" if rtl else "'IBM Plex Sans',system-ui,sans-serif"
     align  = 'right' if rtl else 'left'
 
-    from src.ui import _LOGO_SVG_DARK
-    # Single st.html() call — CSS + header in one block to avoid rerun loops.
-    # Design: dark gradient background + glass-morphism card + white text throughout.
-    st.html(f"""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;700&display=swap');
+    # Mount the cookie component once for this run so that, on submit, the
+    # write below reaches an already-live component and flushes before rerun.
+    _login_ctrl = _cookie_controller()
 
+    from src.ui import _FONT_LINKS
+    from src.branding import logo_data_uri
+    _logo = logo_data_uri("full")
+    _logo_html = (
+        f"<img src='{_logo}' style='max-width:230px;width:70%;height:auto;"
+        f"margin:0 auto 18px;display:block'/>"
+    ) if _logo else ""
+
+    # Clean LIGHT card — dark, legible input text on a white field (no more
+    # white-on-white), real company logo, custom fonts loaded via <link>.
+    st.html(f"""
+    {_FONT_LINKS}
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
     #MainMenu, footer, [data-testid="stToolbar"] {{ visibility:hidden !important; }}
     [data-testid="stSidebar"], [data-testid="stSidebarNav"],
     [data-testid="collapsedControl"] {{ display:none !important; }}
 
     html, body, .stApp {{
         font-family: {font} !important;
-        background: linear-gradient(145deg, {primary} 0%, #1a2b38 55%, #0e1c27 100%) !important;
+        background: linear-gradient(160deg, #eef2f5 0%, #e3e9ee 55%, #dbe2e8 100%) !important;
         min-height: 100vh !important;
     }}
 
-    /* Glass-morphism card — works on all Streamlit versions */
+    /* White card */
     .main .block-container {{
-        max-width: 440px !important;
+        max-width: 430px !important;
         margin: 7vh auto 0 !important;
-        padding: 2.5rem 2.5rem 2rem !important;
-        background: rgba(255,255,255,0.08) !important;
-        border: 1px solid rgba(255,255,255,0.18) !important;
+        padding: 2.4rem 2.4rem 2rem !important;
+        background: #ffffff !important;
+        border: 1px solid #e5e8eb !important;
         border-radius: 20px !important;
-        backdrop-filter: blur(18px) !important;
-        -webkit-backdrop-filter: blur(18px) !important;
-        box-shadow: 0 24px 64px rgba(0,0,0,0.40) !important;
+        box-shadow: 0 20px 60px rgba(26,43,56,0.16) !important;
     }}
 
-    /* Label text — white */
+    /* Labels — dark */
     [data-testid="stTextInput"] label,
     [data-testid="stWidgetLabel"] {{
         font-size: 13px !important;
         font-weight: 600 !important;
-        color: rgba(255,255,255,0.85) !important;
+        color: #354f61 !important;
         font-family: {font} !important;
         direction: {dir_s} !important;
         text-align: {align} !important;
     }}
 
-    /* Input fields — glass style */
+    /* Input fields — white with DARK text (fixes the invisible white text) */
     [data-baseweb="input"] {{
-        background: rgba(255,255,255,0.10) !important;
-        border-color: rgba(255,255,255,0.22) !important;
+        background: #ffffff !important;
+        border: 1px solid #cfd6dc !important;
         border-radius: 10px !important;
     }}
     [data-baseweb="input"] input {{
-        color: #ffffff !important;
+        color: #1a2b38 !important;
+        -webkit-text-fill-color: #1a2b38 !important;
         font-size: 15px !important;
         font-family: {font} !important;
         direction: {dir_s} !important;
+        background: transparent !important;
     }}
-    [data-baseweb="input"] input::placeholder {{
-        color: rgba(255,255,255,0.40) !important;
+    [data-baseweb="input"] input::placeholder {{ color: #9aa6b0 !important; }}
+    [data-baseweb="input"]:focus-within {{
+        border-color: #354f61 !important;
+        box-shadow: 0 0 0 3px rgba(53,79,97,0.12) !important;
+    }}
+    /* Neutralise browser autofill turning the field white-on-white */
+    input:-webkit-autofill, input:-webkit-autofill:focus {{
+        -webkit-text-fill-color: #1a2b38 !important;
+        -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
     }}
 
     /* Language pill buttons */
@@ -249,14 +277,14 @@ def _show_login():
         min-height: 32px !important;
     }}
     .stButton > button[kind="secondary"] {{
-        background: rgba(255,255,255,0.08) !important;
-        border-color: rgba(255,255,255,0.25) !important;
-        color: rgba(255,255,255,0.80) !important;
+        background: #f2f5f7 !important;
+        border-color: #d2d7dc !important;
+        color: #5a7080 !important;
     }}
     .stButton > button[kind="primary"] {{
-        background: #f6ba3b !important;
-        border-color: #f6ba3b !important;
-        color: #1a2b38 !important;
+        background: #354f61 !important;
+        border-color: #354f61 !important;
+        color: #ffffff !important;
     }}
 
     /* Form — no extra border */
@@ -267,7 +295,7 @@ def _show_login():
         box-shadow: none !important;
     }}
 
-    /* Sign In button */
+    /* Sign In button — brand gold */
     [data-testid="stFormSubmitButton"] > button {{
         background: #f6ba3b !important;
         border-color: #f6ba3b !important;
@@ -280,6 +308,10 @@ def _show_login():
         margin-top: 8px !important;
         font-family: {font} !important;
         letter-spacing: 0.02em !important;
+        box-shadow: 0 4px 14px rgba(246,186,59,0.35) !important;
+    }}
+    [data-testid="stFormSubmitButton"] > button:hover {{
+        background: #eaa91f !important; border-color: #eaa91f !important;
     }}
 
     /* Alert */
@@ -287,9 +319,6 @@ def _show_login():
         border-radius: 10px !important;
         font-family: {font} !important;
         direction: {dir_s} !important;
-        background: rgba(214,69,69,0.15) !important;
-        border-color: rgba(214,69,69,0.4) !important;
-        color: #ffb3b3 !important;
     }}
 
     /* ── Mobile: tighten the login card ── */
@@ -303,11 +332,11 @@ def _show_login():
         [data-testid="stFormSubmitButton"] > button {{ height: 46px !important; }}
     }}
     </style>
-    <div style="text-align:center;padding:8px 0 24px;direction:{dir_s}">
-      {_LOGO_SVG_DARK}
-      <div style="font-size:26px;font-weight:700;color:#ffffff;
-          font-family:{font};letter-spacing:-0.02em;line-height:1.2;margin-bottom:6px">{company}</div>
-      <div style="font-size:13px;color:rgba(255,255,255,0.55);font-family:{font}">
+    <div style="text-align:center;padding:6px 0 20px;direction:{dir_s}">
+      {_logo_html}
+      <div style="font-size:24px;font-weight:700;color:#1a2b38;
+          font-family:{font};letter-spacing:-0.02em;line-height:1.2;margin-bottom:4px">{company}</div>
+      <div style="font-size:13px;color:#6b757d;font-family:{font}">
         {t('Commission Manager — Sign In')}</div>
     </div>
     """)
@@ -348,12 +377,12 @@ def _show_login():
                 'role':          user['role'],
                 'auth_token':    token,
             })
-            _set_auth_cookie(token)
+            _set_auth_cookie(token, _login_ctrl)
             # Give the cookie component a moment to flush the write to the
             # browser before the rerun tears down this run — otherwise the
             # cookie is lost and the next refresh logs the user out again.
             import time
-            time.sleep(0.4)
+            time.sleep(0.6)
             st.rerun()
         else:
             st.error(t("Invalid username or password."))

@@ -9,63 +9,13 @@ from src.i18n import lang_switcher, t, is_rtl
 _FONT    = "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
 _FONT_AR = "https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700&display=swap"
 
-# SE logo SVG — white+gold version for dark backgrounds (sidebar, login card)
-# Matches the letterhead: navy circle, gold arcs top-right + bottom-left,
-# white total station on tripod at center, inner crosshair ring marks.
-_LOGO_SVG_DARK = (
-    "<svg width='56' height='56' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg' "
-    "style='display:block;margin:0 auto 8px'>"
-    # Navy filled circle (the logo background disc)
-    "<circle cx='50' cy='50' r='44' fill='#1a2b38'/>"
-    # Outer white ring outline
-    "<circle cx='50' cy='50' r='44' fill='none' stroke='rgba(255,255,255,0.25)' stroke-width='2'/>"
-    # Inner ring (target reticle detail)
-    "<circle cx='50' cy='50' r='28' fill='none' stroke='rgba(255,255,255,0.18)' stroke-width='1'/>"
-    # Gold arcs — top-right quadrant
-    "<path d='M 50,6 A 44,44 0 0,1 94,50' fill='none' stroke='#f6ba3b' stroke-width='6' stroke-linecap='round'/>"
-    # Gold arcs — bottom-left quadrant
-    "<path d='M 50,94 A 44,44 0 0,1 6,50' fill='none' stroke='#f6ba3b' stroke-width='6' stroke-linecap='round'/>"
-    # Crosshair tick marks (white lines from inner ring to outer ring)
-    "<line x1='50' y1='6'  x2='50' y2='22' stroke='white' stroke-width='2'/>"
-    "<line x1='50' y1='78' x2='50' y2='94' stroke='white' stroke-width='2'/>"
-    "<line x1='6'  y1='50' x2='22' y2='50' stroke='white' stroke-width='2'/>"
-    "<line x1='78' y1='50' x2='94' y2='50' stroke='white' stroke-width='2'/>"
-    # Total station instrument body
-    "<rect x='42' y='30' width='16' height='13' rx='3' fill='white'/>"
-    # Lens aperture circle
-    "<circle cx='50' cy='36' r='4' fill='none' stroke='#1a2b38' stroke-width='2'/>"
-    "<circle cx='50' cy='36' r='1.5' fill='#1a2b38'/>"
-    # Tripod stem
-    "<line x1='50' y1='43' x2='50' y2='60' stroke='white' stroke-width='2.5'/>"
-    # Cross bar on tripod
-    "<line x1='42' y1='53' x2='58' y2='53' stroke='white' stroke-width='1.5'/>"
-    # Tripod legs (spread from crossbar)
-    "<line x1='50' y1='58' x2='39' y2='70' stroke='white' stroke-width='2'/>"
-    "<line x1='50' y1='58' x2='61' y2='70' stroke='white' stroke-width='2'/>"
-    "</svg>"
-)
-
-# SE logo SVG — navy+gold version for light/white backgrounds
-_LOGO_SVG_LIGHT = (
-    "<svg width='64' height='64' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg' "
-    "style='display:block;margin:0 auto 12px'>"
-    "<circle cx='50' cy='50' r='44' fill='#1a2b38'/>"
-    "<circle cx='50' cy='50' r='44' fill='none' stroke='rgba(255,255,255,0.25)' stroke-width='2'/>"
-    "<circle cx='50' cy='50' r='28' fill='none' stroke='rgba(255,255,255,0.18)' stroke-width='1'/>"
-    "<path d='M 50,6 A 44,44 0 0,1 94,50' fill='none' stroke='#f6ba3b' stroke-width='6' stroke-linecap='round'/>"
-    "<path d='M 50,94 A 44,44 0 0,1 6,50' fill='none' stroke='#f6ba3b' stroke-width='6' stroke-linecap='round'/>"
-    "<line x1='50' y1='6'  x2='50' y2='22' stroke='white' stroke-width='2'/>"
-    "<line x1='50' y1='78' x2='50' y2='94' stroke='white' stroke-width='2'/>"
-    "<line x1='6'  y1='50' x2='22' y2='50' stroke='white' stroke-width='2'/>"
-    "<line x1='78' y1='50' x2='94' y2='50' stroke='white' stroke-width='2'/>"
-    "<rect x='42' y='30' width='16' height='13' rx='3' fill='white'/>"
-    "<circle cx='50' cy='36' r='4' fill='none' stroke='#1a2b38' stroke-width='2'/>"
-    "<circle cx='50' cy='36' r='1.5' fill='#1a2b38'/>"
-    "<line x1='50' y1='43' x2='50' y2='60' stroke='white' stroke-width='2.5'/>"
-    "<line x1='42' y1='53' x2='58' y2='53' stroke='white' stroke-width='1.5'/>"
-    "<line x1='50' y1='58' x2='39' y2='70' stroke='white' stroke-width='2'/>"
-    "<line x1='50' y1='58' x2='61' y2='70' stroke='white' stroke-width='2'/>"
-    "</svg>"
+# Font loading via <link> (more reliable on mobile than @import in a <style>)
+_FONT_LINKS = (
+    "<link rel='preconnect' href='https://fonts.googleapis.com'>"
+    "<link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>"
+    "<link rel='stylesheet' "
+    "href='https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700"
+    "&family=IBM+Plex+Mono:wght@400;500&family=Cairo:wght@400;500;600;700&display=swap'>"
 )
 
 _CSS = """
@@ -366,16 +316,13 @@ hr { border-color: var(--se-line) !important; margin: 1.1rem 0 !important; }
 footer { visibility: hidden; }
 [data-testid="stSidebarNav"] { display: none !important; }
 
-/* ── Sidebar collapse/expand toggle — always visible ── */
+/* ── Sidebar collapse/expand toggle — styled, but visibility left to Streamlit
+   so it does not leave a stray chip when the sidebar is open ── */
 [data-testid="collapsedControl"] {
-  display: flex !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  pointer-events: all !important;
   background: var(--se-navy) !important;
   border-radius: 0 8px 8px 0 !important;
   box-shadow: 2px 2px 8px rgba(0,0,0,0.18) !important;
-  z-index: 999999 !important;
+  z-index: 1000 !important;
 }
 [data-testid="collapsedControl"] svg,
 [data-testid="collapsedControl"] button svg {
@@ -454,7 +401,22 @@ footer { visibility: hidden; }
   [data-testid="stPlotlyChart"] > div { width: 100% !important; }
 
   /* Keep the sidebar toggle comfortably tappable */
-  [data-testid="collapsedControl"] { padding: 6px !important; transform: scale(1.1); }
+  [data-testid="collapsedControl"] { padding: 6px !important; }
+
+  /* When collapsed on a phone, the sidebar must close COMPLETELY — no sliver.
+     Streamlit sets aria-expanded="false"; force zero width + off-screen. */
+  section[data-testid="stSidebar"][aria-expanded="false"] {
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    margin: 0 !important;
+    transform: translateX(-110%) !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+  }
+  section[data-testid="stSidebar"][aria-expanded="false"] * { visibility: hidden !important; }
+  /* Hide the drag-to-resize handle that can leave a vertical line on mobile */
+  [data-testid="stSidebarResizeHandle"] { display: none !important; }
 }
 
 /* Very small phones */
@@ -513,10 +475,11 @@ label, .stTextInput label, .stSelectbox label,
 
 def inject_css(primary: str = "#354f61") -> None:
     """Inject SE design system CSS. Call once per page after set_page_config."""
-    css = "<style>" + _CSS.replace("{font}", _FONT) + "</style>"
+    html = _FONT_LINKS
+    html += "<style>" + _CSS.replace("{font}", _FONT) + "</style>"
     if is_rtl():
-        css += "<style>" + _RTL_CSS.replace("{font_ar}", _FONT_AR) + "</style>"
-    st.html(css)
+        html += "<style>" + _RTL_CSS.replace("{font_ar}", _FONT_AR) + "</style>"
+    st.html(html)
 
 
 def page_header(title: str, subtitle: str = "", primary: str = "#354f61") -> None:
@@ -559,6 +522,7 @@ def sidebar_nav() -> None:
 def sidebar_logo(company: str = "Surveying Experts", primary: str = "#354f61") -> None:
     """Render SE logo block + language switcher + navigation in the sidebar."""
     from src.db import db_status
+    from src.branding import logo_data_uri
     status = db_status()
     if status['ok'] and status['backend'] == 'postgresql':
         dot, badge_color, badge_text = "●", "#4caf7d", t("Cloud database")
@@ -566,10 +530,21 @@ def sidebar_logo(company: str = "Surveying Experts", primary: str = "#354f61") -
         dot, badge_color, badge_text = "●", "#f6ba3b", t("Local database (dev only)")
     else:
         dot, badge_color, badge_text = "●", "#e05d5d", t("Database unreachable")
+
+    # Real company logo (compass mark) on a light chip so the navy artwork
+    # reads clearly against the dark sidebar. If the asset is missing, no icon.
+    icon = logo_data_uri("icon")
+    logo_html = (
+        f"<div style='width:76px;height:76px;margin:0 auto 10px;border-radius:18px;"
+        f"background:#ffffff;box-shadow:0 4px 14px rgba(0,0,0,0.25);"
+        f"display:flex;align-items:center;justify-content:center'>"
+        f"<img src='{icon}' style='width:60px;height:60px;object-fit:contain'/></div>"
+    ) if icon else ""
+
     st.sidebar.markdown(
-        f"<div style='padding:14px 0 14px;text-align:center;border-bottom:"
+        f"<div style='padding:16px 0 14px;text-align:center;border-bottom:"
         f"1px solid rgba(255,255,255,0.1);margin-bottom:8px'>"
-        f"{_LOGO_SVG_DARK}"
+        f"{logo_html}"
         f"<div style='font-size:14px;font-weight:700;color:#fff;line-height:1.2'>{company}</div>"
         f"<div style='font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px'>"
         f"{t('Commission Manager')}</div>"
