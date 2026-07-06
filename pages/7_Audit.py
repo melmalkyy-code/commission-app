@@ -8,7 +8,7 @@ require_login()
 require_editor()   # audit log is not available to read-only viewers
 from src.models import get_setting, get_audit_logs
 
-from src.ui import inject_css, page_header, sidebar_logo
+from src.ui import inject_css, page_header, sidebar_logo, render_df
 from src.i18n import t
 from src.branding import page_icon
 
@@ -49,7 +49,7 @@ if logs:
         t("Notes"):     r.get('notes', ''),
         t("User"):      r.get('username', ''),
     } for r in logs])
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    render_df(df)
 
     import io
     buf = io.BytesIO()

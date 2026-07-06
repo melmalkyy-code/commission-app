@@ -10,7 +10,7 @@ from src.models import (get_setting, get_salespersons, get_categories,
                          get_or_create_period, save_sale, get_sales,
                          get_tier_target, log_action)
 from src.calculations import calc_all_commissions, get_totals
-from src.ui import inject_css, page_header, sidebar_logo
+from src.ui import inject_css, page_header, sidebar_logo, render_df
 from src.i18n import t, q_label
 from src.branding import page_icon
 
@@ -152,7 +152,7 @@ preview_rows = [{
     t("Final Comm."):  f"SAR {c['final_commission']:,.0f}",
 } for c in commissions]
 
-st.dataframe(pd.DataFrame(preview_rows), use_container_width=True, hide_index=True)
+render_df(pd.DataFrame(preview_rows))
 
 # ── Import / Export ────────────────────────────────────────────────────────────
 st.divider()

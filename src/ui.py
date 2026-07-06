@@ -150,11 +150,17 @@ h1, h2, h3, h4, h5, h6 {
   letter-spacing: 0.05em;
 }
 [data-testid="stMetricValue"] {
-  font-size: 24px !important;
+  /* Auto-shrink to fit the card and never truncate the number */
+  font-size: clamp(15px, 1.5vw, 22px) !important;
   font-weight: 700 !important;
   color: var(--se-ink) !important;
   letter-spacing: -0.02em;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  line-height: 1.15 !important;
 }
+[data-testid="stMetricValue"] > div { overflow: visible !important; text-overflow: clip !important; }
 [data-testid="stMetricDelta"] { font-size: 12px !important; }
 
 /* ── Buttons ── */
@@ -237,6 +243,31 @@ h1, h2, h3, h4, h5, h6 {
   overflow: hidden !important;
   border: 1px solid var(--se-line) !important;
   box-shadow: var(--se-shadow) !important;
+}
+
+/* ── Responsive HTML data table (render_df) — full data, scrolls on mobile ── */
+.se-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--se-line);
+  border-radius: var(--se-radius);
+  box-shadow: var(--se-shadow);
+  margin: 4px 0 16px;
+}
+.se-table { border-collapse: collapse; width: 100%; font-size: 13px; background: #fff; }
+.se-table th {
+  background: var(--se-blue); color: #fff !important; font-weight: 600;
+  padding: 10px 12px; text-align: start; white-space: nowrap;
+}
+.se-table td {
+  padding: 8px 12px; border-top: 1px solid var(--se-line);
+  text-align: start; white-space: nowrap; color: #243949;
+}
+.se-table tbody tr:nth-child(even) td { background: #f7f9fb; }
+@media (max-width: 640px) {
+  .se-table { font-size: 12px; }
+  .se-table th, .se-table td { padding: 7px 9px; }
 }
 
 /* ── Expanders ── */
@@ -480,6 +511,22 @@ def inject_css(primary: str = "#354f61") -> None:
     if is_rtl():
         html += "<style>" + _RTL_CSS.replace("{font_ar}", _FONT_AR) + "</style>"
     st.html(html)
+
+
+def render_df(df) -> None:
+    """Render a DataFrame as a fully-visible, mobile-friendly HTML table.
+
+    st.dataframe uses a canvas grid that squeezes columns and truncates cell
+    text on small screens (data appears hidden). This renders a plain HTML
+    table instead: every value is shown and the table scrolls horizontally on
+    narrow screens, so nothing is hidden.
+    """
+    try:
+        html = df.to_html(index=False, escape=True, border=0, classes="se-table")
+        st.markdown(f"<div class='se-table-wrap'>{html}</div>",
+                    unsafe_allow_html=True)
+    except Exception:
+        st.dataframe(df, use_container_width=True, hide_index=True)
 
 
 def page_header(title: str, subtitle: str = "", primary: str = "#354f61") -> None:

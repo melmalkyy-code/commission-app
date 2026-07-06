@@ -8,7 +8,7 @@ init_db()
 require_login()
 from src.models import get_setting, get_or_create_period
 from src.calculations import calc_all_commissions, get_totals
-from src.ui import inject_css, page_header, sidebar_logo, sar, pct
+from src.ui import inject_css, page_header, sidebar_logo, sar, pct, render_df
 from src.i18n import t, q_label
 from src.branding import page_icon
 
@@ -95,11 +95,7 @@ with tab_company:
         t("KPI Multiplier"): f"x {c['kpi_multiplier']}",
         t("Final Comm."):    sar(c['final_commission']),
     } for c in commissions]
-    _ks = t("KPI Score")
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True,
-                 column_config={
-                     _ks: st.column_config.ProgressColumn(_ks, min_value=0, max_value=120, format="%.2f")
-                 })
+    render_df(pd.DataFrame(rows))
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -192,8 +188,7 @@ with tab_branch:
                 t("KPI Mult."):    f"x {c['kpi_multiplier']}",
                 t("Final Comm."):  sar(c['final_commission']),
             } for c in bv['persons']]
-            st.dataframe(pd.DataFrame(br_persons),
-                         use_container_width=True, hide_index=True)
+            render_df(pd.DataFrame(br_persons))
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -226,8 +221,7 @@ with tab_person:
                     t("Rate"):         f"{cr['rate']:.2f}%",
                     t("Commission"):   sar(cr['commission']),
                 } for cr in sel_c['categories']]
-                st.dataframe(pd.DataFrame(cat_rows),
-                             use_container_width=True, hide_index=True)
+                render_df(pd.DataFrame(cat_rows))
 
                 # Achievement bar chart by category
                 cat_names = [cr['category_name'] for cr in sel_c['categories']]

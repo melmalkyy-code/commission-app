@@ -20,7 +20,7 @@ st.set_page_config(
 init_db()
 require_login()
 
-from src.ui import inject_css, page_header, sidebar_logo, sar, pct
+from src.ui import inject_css, page_header, sidebar_logo, sar, pct, render_df
 from src.calculations import calc_all_commissions, get_totals
 from src.i18n import t, is_rtl, q_label
 
@@ -179,8 +179,7 @@ with tab_co:
                 "#": medals[i], t("Salesperson"): c['salesperson_name'],
                 t("Sales"): sar(c['total_actual']), t("Ach."): pct(c['achievement']),
             } for i, c in enumerate(top5)])
-            st.dataframe(df_top, use_container_width=True, hide_index=True,
-                         column_config={"#": st.column_config.TextColumn(width="small")})
+            render_df(df_top)
 
         with col_pie:
             st.markdown(f"#### {t('Sales Mix by Category')}")
@@ -283,7 +282,7 @@ with tab_re:
                 t("Base Comm."):       sar(rv['base']),
                 t("Final Commission"): sar(rv['final']),
             })
-        st.dataframe(pd.DataFrame(re_table), use_container_width=True, hide_index=True)
+        render_df(pd.DataFrame(re_table))
 
 
 # ════════════════════ BY BRANCH ══════════════════════════════════════════════
@@ -362,7 +361,7 @@ with tab_br:
                 t("Achievement"): pct(ach), t("Base Comm."): sar(bv['base']),
                 t("Final Commission"): sar(bv['final']),
             })
-        st.dataframe(pd.DataFrame(br_table), use_container_width=True, hide_index=True)
+        render_df(pd.DataFrame(br_table))
 
 
 # ════════════════════ BY SALESPERSON ═════════════════════════════════════════
@@ -383,12 +382,7 @@ with tab_sp:
             t("Final Comm."): sar(c['final_commission']),
         } for c in sorted(commissions, key=lambda c: c['final_commission'], reverse=True)]
 
-        kpi_score_col = t("KPI Score")
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True,
-                     column_config={
-                         kpi_score_col: st.column_config.ProgressColumn(
-                             kpi_score_col, min_value=0, max_value=120, format="%.1f")
-                     })
+        render_df(pd.DataFrame(rows))
 
         st.markdown(f"#### {t('Salesperson Drilldown')}")
         sel = st.selectbox(t("Select salesperson"),
@@ -409,7 +403,7 @@ with tab_sp:
                 t("Achievement"): pct(cr['achievement']),
                 t("Commission"):  sar(cr['commission']),
             } for cr in sel_c['categories']]
-            st.dataframe(pd.DataFrame(cat_rows), use_container_width=True, hide_index=True)
+            render_df(pd.DataFrame(cat_rows))
 
 
 # ════════════════════ QOQ COMPARISON ═════════════════════════════════════════
@@ -459,7 +453,7 @@ with tab_qoq:
                 t("Growth QoQ"): _qg(totals['total_final'],   prev_totals['total_final']),
             },
         ]
-        st.dataframe(pd.DataFrame(comp_rows), use_container_width=True, hide_index=True)
+        render_df(pd.DataFrame(comp_rows))
 
         # ── Sales comparison chart ────────────────────────────────────────────
         st.markdown(f"#### {t('Sales Trend by Salesperson')}")
@@ -499,7 +493,7 @@ with tab_qoq:
                 f"{t('Final Comm.')} {period_label}": sar(c['final_commission']),
                 t("Comm. Growth"):         _qg(c['final_commission'], pc),
             })
-        st.dataframe(pd.DataFrame(sp_qoq), use_container_width=True, hide_index=True)
+        render_df(pd.DataFrame(sp_qoq))
 
         # ── By region ─────────────────────────────────────────────────────────
         st.markdown(f"#### {t('By Region')}")
@@ -531,7 +525,7 @@ with tab_qoq:
                 f"{t('Final Comm.')} {period_label}": sar(cf),
                 t("Comm. Growth"):              _qg(cf, pf),
             })
-        st.dataframe(pd.DataFrame(re_qoq), use_container_width=True, hide_index=True)
+        render_df(pd.DataFrame(re_qoq))
 
         # ── By branch ─────────────────────────────────────────────────────────
         st.markdown(f"#### {t('By Branch')}")
@@ -563,4 +557,4 @@ with tab_qoq:
                 f"{t('Final Comm.')} {period_label}": sar(cf),
                 t("Comm. Growth"):              _qg(cf, pf),
             })
-        st.dataframe(pd.DataFrame(br_qoq), use_container_width=True, hide_index=True)
+        render_df(pd.DataFrame(br_qoq))

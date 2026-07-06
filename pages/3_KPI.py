@@ -11,7 +11,7 @@ from src.models import (get_setting, get_salespersons, get_kpi_items,
                          get_kpi_adjustment, save_kpi_adjustment, log_action,
                          get_category_achievement)
 from src.calculations import calc_kpi
-from src.ui import inject_css, page_header, sidebar_logo
+from src.ui import inject_css, page_header, sidebar_logo, render_df
 from src.i18n import t, q_label
 from src.branding import page_icon
 
@@ -183,14 +183,7 @@ for sp in salespeople:
     })
 
 _fks = t("Final KPI Score")
-st.dataframe(
-    pd.DataFrame(result_rows),
-    use_container_width=True,
-    hide_index=True,
-    column_config={
-        _fks: st.column_config.ProgressColumn(_fks, min_value=0, max_value=120, format="%.2f")
-    },
-)
+render_df(pd.DataFrame(result_rows))
 
 # ── Per-item breakdown ────────────────────────────────────────────────────────
 with st.expander(t("Detailed Item Breakdown (per salesperson)")):
@@ -209,7 +202,7 @@ with st.expander(t("Detailed Item Breakdown (per salesperson)")):
                 t("Normalized"):   f"{d['normalized']:.1f}%",
                 t("Contribution"): f"{d['contribution']:.2f}",
             })
-        st.dataframe(pd.DataFrame(detail_rows), use_container_width=True, hide_index=True)
+        render_df(pd.DataFrame(detail_rows))
         c1, c2 = st.columns(2)
         c1.metric(t("Weighted Score"), f"{kpi['weighted_score']:.2f}")
         c1.metric(t("Bonus"),          f"+{kpi['bonus']:.1f}")

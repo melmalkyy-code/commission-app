@@ -8,7 +8,7 @@ require_login()
 from src.models import get_setting, get_or_create_period, get_period, get_branches, get_salespersons
 from src.calculations import calc_all_commissions, get_totals
 
-from src.ui import inject_css, page_header, sidebar_logo
+from src.ui import inject_css, page_header, sidebar_logo, render_df
 from src.i18n import t, tl, q_label, is_rtl
 from src.pdf_arabic import cell as _ar_cell, pdf_font, pdf_font_bold, ar as _ar
 from src.branding import page_icon
@@ -844,7 +844,7 @@ with tab_region:
                 t("Achievement"):      f"{ach:.1f}%",
                 t("Final Commission"): f"SAR {r_final:,.0f}",
             })
-        st.dataframe(pd.DataFrame(re_rows), use_container_width=True, hide_index=True)
+        render_df(pd.DataFrame(re_rows))
         st.markdown("---")
 
         # Per-region download
@@ -902,7 +902,7 @@ with tab_branch:
                 t("Achievement"):      f"{ach:.1f}%",
                 t("Final Commission"): f"SAR {b_final:,.0f}",
             })
-        st.dataframe(pd.DataFrame(br_rows), use_container_width=True, hide_index=True)
+        render_df(pd.DataFrame(br_rows))
         st.markdown("---")
 
         # Per-branch download
@@ -989,7 +989,7 @@ with tab_person:
                     t("Weighted Points"):  f"{it['contribution']:.1f}",
                     t("Source"):           t("Auto") if it.get('is_auto') else t("Manual"),
                 } for it in _kitems]
-                st.dataframe(pd.DataFrame(_kpi_rows), use_container_width=True, hide_index=True)
+                render_df(pd.DataFrame(_kpi_rows))
                 k1, k2, k3, k4 = st.columns(4)
                 k1.metric(t("Weighted Score"),  f"{_kpi.get('weighted_score', 0):.1f}")
                 if _kpi.get('bonus') or _kpi.get('penalty'):
@@ -1033,6 +1033,6 @@ with tab_person:
             t("Achievement"): f"{c['achievement']:.1f}%",
             t("Final Comm."): f"SAR {c['final_commission']:,.0f}",
         } for c in sorted(commissions, key=lambda x: x['final_commission'], reverse=True)]
-        st.dataframe(pd.DataFrame(quick_rows), use_container_width=True, hide_index=True)
+        render_df(pd.DataFrame(quick_rows))
 
 
