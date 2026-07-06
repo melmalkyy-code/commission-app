@@ -222,6 +222,8 @@ _AR: dict[str, str] = {
         "إدارة الإعدادات، المستهدفات، وقواعد العمولات",
     "Access denied. Settings are only available to administrators.":
         "غير مصرح بالوصول. الإعدادات متاحة للمسؤولين فقط.",
+    "View-only access: you can view dashboards and download reports, but cannot edit data or open this page.":
+        "وصول للعرض فقط: يمكنك عرض لوحات المعلومات وتنزيل التقارير، لكن لا يمكنك تعديل البيانات أو فتح هذه الصفحة.",
     "Branding":              "هوية الشركة",
     "Company Branding":      "هوية الشركة",
     "Company Name":          "اسم الشركة",

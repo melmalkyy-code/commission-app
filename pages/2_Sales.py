@@ -1,9 +1,10 @@
 import sys, os; sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import streamlit as st
 from src.startup import init_db
-from src.auth import require_login
+from src.auth import require_login, require_editor
 init_db()
 require_login()
+require_editor()   # viewers are read-only — no sales input
 import pandas as pd
 from src.models import (get_setting, get_salespersons, get_categories,
                          get_or_create_period, save_sale, get_sales,

@@ -2,9 +2,10 @@ import sys, os; sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..')
 import streamlit as st
 import pandas as pd
 from src.startup import init_db
-from src.auth import require_login
+from src.auth import require_login, require_editor
 init_db()
 require_login()
+require_editor()   # audit log is not available to read-only viewers
 from src.models import get_setting, get_audit_logs
 
 from src.ui import inject_css, page_header, sidebar_logo

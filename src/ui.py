@@ -504,8 +504,14 @@ def page_header(title: str, subtitle: str = "", primary: str = "#354f61") -> Non
 
 
 def sidebar_nav() -> None:
-    """Render translated page navigation links in the sidebar."""
-    _pages = [
+    """Render translated page navigation links in the sidebar.
+
+    Read-only viewers see only the pages they may use: the Dashboard, the
+    Commission Report (read-only) and the Reports Center (downloads). The
+    input/settings/audit pages are hidden and also gated server-side.
+    """
+    from src.auth import is_viewer
+    _all_pages = [
         ("Home.py",               "Dashboard"),
         ("pages/2_Sales.py",      "Sales Input"),
         ("pages/3_KPI.py",        "KPI Calculation"),
@@ -514,7 +520,11 @@ def sidebar_nav() -> None:
         ("pages/6_Settings.py",   "Settings"),
         ("pages/7_Audit.py",      "Audit Log"),
     ]
-    for _path, _label in _pages:
+    _viewer_pages = {"Home.py", "pages/4_Commission.py", "pages/5_Reports.py"}
+    viewer = is_viewer()
+    for _path, _label in _all_pages:
+        if viewer and _path not in _viewer_pages:
+            continue
         st.sidebar.page_link(_path, label=t(_label))
     st.sidebar.markdown("---")
 

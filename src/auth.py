@@ -442,8 +442,26 @@ def is_admin() -> bool:
     return st.session_state.get('role') == 'admin'
 
 
+def is_viewer() -> bool:
+    """Read-only role: may view dashboards and download reports only."""
+    return st.session_state.get('role') == 'viewer'
+
+
 def require_admin() -> None:
     """Stop execution with an access-denied message if the user is not an admin."""
     if not is_admin():
         st.error(t("Access denied. Settings are only available to administrators."))
+        st.stop()
+
+
+def require_editor() -> None:
+    """Block read-only viewers from data-entry and management pages.
+
+    Viewers may only view dashboards and download reports; any page that
+    accepts input or exposes settings/audit calls this right after
+    require_login() to deny them.
+    """
+    if is_viewer():
+        st.error(t("View-only access: you can view dashboards and download "
+                   "reports, but cannot edit data or open this page."))
         st.stop()
