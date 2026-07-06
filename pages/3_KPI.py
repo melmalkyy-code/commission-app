@@ -7,10 +7,11 @@ require_login()
 require_editor()   # viewers are read-only — no KPI input
 import pandas as pd
 from src.models import (get_setting, get_salespersons, get_kpi_items,
-                         get_or_create_period, get_kpi_score, save_kpi_score,
-                         get_kpi_adjustment, save_kpi_adjustment, log_action,
+                         get_or_create_period, get_kpi_score,
+                         save_kpi_scores_bulk,
+                         get_kpi_adjustment, save_kpi_adjustment,
                          get_category_achievement)
-from src.calculations import calc_kpi
+from src.calculations import calc_kpi, calc_all_commissions
 from src.ui import inject_css, page_header, sidebar_logo, render_df
 from src.i18n import t, q_label
 from src.branding import page_icon
@@ -42,49 +43,47 @@ total_weight = sum(i['weight'] for i in kpi_items)
 if abs(total_weight - 100.0) > 0.01:
     st.warning(t("KPI weights total {total_weight:.1f}% (should be 100%). Fix in Settings > KPI Settings.").format(total_weight=total_weight))
 
-# ── Load all current DB state (auto + manual) ─────────────────────────────────
-db_scores = {}
-db_adjs   = {}
-for sp in salespeople:
-    for item in kpi_items:
-        db_scores[(sp['id'], item['id'])] = float(
-            get_kpi_score(period['id'], sp['id'], item['id']) or 0
-        )
-    adj = get_kpi_adjustment(period['id'], sp['id'])
-    db_adjs[sp['id']] = {
-        'bonus':   float(adj.get('bonus_points', 0) or 0),
-        'penalty': float(adj.get('penalty_points', 0) or 0),
-    }
-
 # ── Unified KPI table — auto items shown (locked), manual items editable ──────
 st.markdown(f"**{t('KPI Scores — auto-calculated items are locked (grey); manual items are editable.')}**")
 st.caption(t("Scores are entered as raw values and calculated against each item's Max Score. Example: score 42 with Max 50 → 84 % of that item's weight."))
 
-rows = []
-for sp in salespeople:
-    row = {
-        t('Salesperson'): sp['name'],
-        t('Branch'):      sp.get('branch_name') or '',
-        '_sp_id':         sp['id'],
-    }
-    for item in auto_items:
-        ach = get_category_achievement(period['id'], sp['id'], item['linked_category_id'])
-        col = f"{item['name']} ({item['weight']:.0f}%) [Auto]"
-        row[col] = round(ach, 1)
-    for item in manual_items:
-        col = f"{item['name']} ({item['weight']:.0f}%)"
-        row[col] = db_scores[(sp['id'], item['id'])]
-    row[t('Bonus pts')]   = db_adjs[sp['id']]['bonus']
-    row[t('Penalty pts')] = db_adjs[sp['id']]['penalty']
-    rows.append(row)
-
+period_id = period['id']
 _auto_sfx = " [Auto]" if not t("Auto") == "Auto" else f" [{t('Auto')}]"
 auto_col_names   = [f"{i['name']} ({i['weight']:.0f}%){_auto_sfx}" for i in auto_items]
 manual_col_names = [f"{i['name']} ({i['weight']:.0f}%)"             for i in manual_items]
 display_cols     = ([t('Salesperson'), t('Branch')]
                     + auto_col_names + manual_col_names
                     + [t('Bonus pts'), t('Penalty pts')])
-editable_df = pd.DataFrame(rows)[display_cols].copy()
+
+# Build the editor + saved-value snapshot ONCE per signature; kept in
+# session_state so it is not rebuilt from the DB (dozens of per-cell queries)
+# on every keystroke — that rebuild is what dropped the value being typed.
+_sig      = f"{period_id}-{'.'.join(str(s['id']) for s in salespeople)}-{'.'.join(str(i['id']) for i in kpi_items)}"
+_base_key = f"_kpi_base_{_sig}"
+_snap_key = f"_kpi_snap_{_sig}"
+
+if _base_key not in st.session_state:
+    _rows = []
+    _snap = {'scores': {}, 'adjs': {}}
+    for sp in salespeople:
+        row = {t('Salesperson'): sp['name'], t('Branch'): sp.get('branch_name') or ''}
+        for item, col in zip(auto_items, auto_col_names):
+            row[col] = round(get_category_achievement(period_id, sp['id'], item['linked_category_id']), 1)
+        for item, col in zip(manual_items, manual_col_names):
+            v = float(get_kpi_score(period_id, sp['id'], item['id']) or 0)
+            row[col] = v
+            _snap['scores'][(sp['id'], item['id'])] = v
+        adj = get_kpi_adjustment(period_id, sp['id'])
+        b = float(adj.get('bonus_points', 0) or 0)
+        p = float(adj.get('penalty_points', 0) or 0)
+        row[t('Bonus pts')]   = b
+        row[t('Penalty pts')] = p
+        _snap['adjs'][sp['id']] = {'bonus': b, 'penalty': p}
+        _rows.append(row)
+    st.session_state[_base_key] = pd.DataFrame(_rows)[display_cols]
+    st.session_state[_snap_key] = _snap
+
+editable_df = st.session_state[_base_key]
 
 col_configs: dict = {}
 for col in auto_col_names:
@@ -108,7 +107,7 @@ edited = st.data_editor(
     column_config=col_configs,
     num_rows="fixed",
     hide_index=True,
-    key="kpi_editor",
+    key=f"kpi_editor_{_sig}",
 )
 
 
@@ -120,70 +119,52 @@ def _safe_float(series_row, col: str, default=0.0) -> float:
         return default
 
 
-def _auto_save_kpi():
-    if not manual_items:
-        return
-    changed = False
-    for idx, (_, row) in enumerate(edited.iterrows()):
-        if idx >= len(salespeople):
+# ── Fast autosave: only changed scores (one bulk round-trip) + adjustments ────
+if manual_items:
+    _snap = st.session_state[_snap_key]
+    score_changes = []
+    adj_changes   = []
+    for idx, sp in enumerate(salespeople):
+        if idx >= len(edited):
             break
-        sp = salespeople[idx]
-        for item in manual_items:
-            col = f"{item['name']} ({item['weight']:.0f}%)"
-            val = _safe_float(row, col)               # no cap — open score
-            if abs(val - db_scores[(sp['id'], item['id'])]) > 0.001:
-                save_kpi_score(period['id'], sp['id'], item['id'], val)
-                changed = True
+        row = edited.iloc[idx]
+        for item, col in zip(manual_items, manual_col_names):
+            val = _safe_float(row, col)
+            if abs(val - _snap['scores'].get((sp['id'], item['id']), 0.0)) > 0.001:
+                score_changes.append((sp['id'], item['id'], val))
+                _snap['scores'][(sp['id'], item['id'])] = val
         bonus   = _safe_float(row, t('Bonus pts'))
         penalty = _safe_float(row, t('Penalty pts'))
-        prev    = db_adjs[sp['id']]
+        prev    = _snap['adjs'][sp['id']]
         if abs(bonus - prev['bonus']) > 0.001 or abs(penalty - prev['penalty']) > 0.001:
-            save_kpi_adjustment(period['id'], sp['id'], bonus, penalty)
-            changed = True
-    if changed:
-        st.cache_data.clear()
-        st.toast(t("KPI changes saved"))
+            adj_changes.append((sp['id'], bonus, penalty))
+            _snap['adjs'][sp['id']] = {'bonus': bonus, 'penalty': penalty}
 
+    if score_changes:
+        save_kpi_scores_bulk(period_id, score_changes)
+    for sp_id, bonus, penalty in adj_changes:
+        save_kpi_adjustment(period_id, sp_id, bonus, penalty)
+    if score_changes or adj_changes:
+        calc_all_commissions.clear()   # cheap cache-drop so dashboards refresh
+        st.toast(f"{t('Saved')} · {len(score_changes) + len(adj_changes)}")
 
-_auto_save_kpi()
-
-if st.button(t("Save KPI Scores"), type="primary", key="save_kpi_scores"):
-    for idx, (_, row) in enumerate(edited.iterrows()):
-        if idx >= len(salespeople):
-            break
-        sp = salespeople[idx]
-        for item in manual_items:
-            col = f"{item['name']} ({item['weight']:.0f}%)"
-            save_kpi_score(period['id'], sp['id'], item['id'], _safe_float(row, col))
-        save_kpi_adjustment(
-            period['id'], sp['id'],
-            _safe_float(row, t('Bonus pts')),
-            _safe_float(row, t('Penalty pts')),
-        )
-    log_action("KPI_SAVE_ALL", "kpi_records", notes=f"Q{quarter} {year}")
-    st.cache_data.clear()
-    st.success(t("KPI scores saved."))
-    st.rerun()
-
-# ── KPI Results Preview ───────────────────────────────────────────────────────
+# ── KPI results — computed on demand so typing stays instant ──────────────────
 st.divider()
-st.markdown(f"#### {t('KPI Results Preview')}")
+if st.button(t("Calculate KPI Results"), type="primary", key="calc_kpi_results"):
+    with st.spinner(t("Calculating...")):
+        st.session_state['_kpi_results'] = [{
+            t("Salesperson"):     sp['name'],
+            t("Branch"):          sp.get('branch_name') or '',
+            t("Weighted Score"):  f"{k['weighted_score']:.2f}",
+            t("Bonus"):           f"+{k['bonus']:.1f}",
+            t("Penalty"):         f"-{k['penalty']:.1f}",
+            t("Final KPI Score"): k['final_score'],
+            t("KPI Multiplier"):  f"x {k['multiplier']}",
+        } for sp in salespeople for k in [calc_kpi(period_id, sp['id'])]]
 
-result_rows = []
-for sp in salespeople:
-    kpi = calc_kpi(period['id'], sp['id'])
-    result_rows.append({
-        t("Salesperson"):     sp['name'],
-        t("Branch"):          sp.get('branch_name') or '',
-        t("Weighted Score"):  f"{kpi['weighted_score']:.2f}",
-        t("Bonus"):           f"+{kpi['bonus']:.1f}",
-        t("Penalty"):         f"-{kpi['penalty']:.1f}",
-        t("Final KPI Score"): kpi['final_score'],
-        t("KPI Multiplier"):  f"x {kpi['multiplier']}",
-    })
-
-_fks = t("Final KPI Score")
-render_df(pd.DataFrame(result_rows))
+if st.session_state.get('_kpi_results'):
+    st.markdown(f"#### {t('KPI Results Preview')}")
+    render_df(pd.DataFrame(st.session_state['_kpi_results']))
 
 # ── Per-item breakdown ────────────────────────────────────────────────────────
 with st.expander(t("Detailed Item Breakdown (per salesperson)")):

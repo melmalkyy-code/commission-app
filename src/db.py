@@ -144,6 +144,26 @@ def execute(sql: str, params: tuple = ()) -> Any:
         return cur
 
 
+def execute_many(sql: str, seq_params) -> None:
+    """Run one statement for many parameter tuples in a single round-trip.
+    Far faster than calling execute() in a loop against a remote database."""
+    seq_params = list(seq_params)
+    if not seq_params:
+        return
+    conn    = get_conn()
+    adapted = _adapt_sql(sql)
+    try:
+        cur = conn.cursor()
+        cur.executemany(adapted, seq_params)
+    except Exception:
+        if not is_postgres():
+            raise
+        _close_quietly()
+        conn = get_conn()
+        cur  = conn.cursor()
+        cur.executemany(adapted, seq_params)
+
+
 def fetchall(sql: str, params: tuple = ()) -> list:
     cur = execute(sql, params)
     rows = cur.fetchall()

@@ -246,6 +246,20 @@ def save_kpi_score(period_id: int, sp_id: int, item_id: int, score: float):
     execute("INSERT INTO kpi_records (period_id, salesperson_id, kpi_item_id, score) VALUES (%s,%s,%s,%s) ON CONFLICT (period_id, salesperson_id, kpi_item_id) DO UPDATE SET score=%s, updated_at=CURRENT_TIMESTAMP", (period_id, sp_id, item_id, score, score))
 
 
+def save_kpi_scores_bulk(period_id: int, items):
+    """Upsert many KPI scores in one round-trip. items: iterable of
+    (salesperson_id, kpi_item_id, score). Only pass the cells that changed."""
+    from src.db import execute_many
+    rows = [(period_id, sp_id, item_id, score) for (sp_id, item_id, score) in items]
+    execute_many(
+        "INSERT INTO kpi_records (period_id, salesperson_id, kpi_item_id, score) "
+        "VALUES (%s,%s,%s,%s) "
+        "ON CONFLICT (period_id, salesperson_id, kpi_item_id) "
+        "DO UPDATE SET score=EXCLUDED.score, updated_at=CURRENT_TIMESTAMP",
+        rows,
+    )
+
+
 def get_kpi_adjustment(period_id: int, sp_id: int) -> dict:
     row = fetchone("SELECT bonus_points, penalty_points, notes FROM kpi_adjustments WHERE period_id=%s AND salesperson_id=%s", (period_id, sp_id))
     return row if row else {'bonus_points': 0.0, 'penalty_points': 0.0, 'notes': ''}
@@ -312,6 +326,20 @@ def get_sales(period_id: int, sp_id: int = None) -> list[dict]:
 
 def save_sale(period_id: int, sp_id: int, cat_id: int, amount: float):
     execute("INSERT INTO sales_records (period_id, salesperson_id, category_id, actual_sales) VALUES (%s,%s,%s,%s) ON CONFLICT (period_id, salesperson_id, category_id) DO UPDATE SET actual_sales=%s, updated_at=CURRENT_TIMESTAMP", (period_id, sp_id, cat_id, amount, amount))
+
+
+def save_sales_bulk(period_id: int, items):
+    """Upsert many sales cells in one round-trip. items: iterable of
+    (salesperson_id, category_id, amount). Only pass the cells that changed."""
+    from src.db import execute_many
+    rows = [(period_id, sp_id, cat_id, amount) for (sp_id, cat_id, amount) in items]
+    execute_many(
+        "INSERT INTO sales_records (period_id, salesperson_id, category_id, actual_sales) "
+        "VALUES (%s,%s,%s,%s) "
+        "ON CONFLICT (period_id, salesperson_id, category_id) "
+        "DO UPDATE SET actual_sales=EXCLUDED.actual_sales, updated_at=CURRENT_TIMESTAMP",
+        rows,
+    )
 
 
 # â”€â”€ Audit Log â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
