@@ -339,10 +339,12 @@ def make_excel_salesperson(c: dict, lang: str = 'en') -> bytes:
     # KPI breakdown
     kpi = c.get('kpi') or {}
     kitems = kpi.get('items') or []
-    if kitems:
-        ws.append([])
-        ws.append([_t("KPI Breakdown")])
-        _fill_row(ws, ws.max_row, PRIMARY)
+    ws.append([])
+    ws.append([_t("KPI Score Breakdown")])
+    _fill_row(ws, ws.max_row, PRIMARY)
+    if not kitems:
+        ws.append([_t("No KPI items configured.")])
+    else:
         ws.append([_t("KPI Item"), _t("Weight %"), _t("Score"), _t("Max Score"),
                    _t("Achieved %"), _t("Weighted Points"), _t("Source")])
         _fill_row(ws, ws.max_row, PRIMARY)
@@ -359,6 +361,13 @@ def make_excel_salesperson(c: dict, lang: str = 'en') -> bytes:
             ws.append([_t("Penalty"), "", "", "", "", -round(kpi['penalty'], 1), ""])
         ws.append([_t("Final KPI Score"), "", "", "", "",
                    round(kpi.get('final_score', c['kpi_score']), 1), ""])
+        _rule = kpi.get('applied_rule')
+        if _rule:
+            _hi = "∞" if (_rule.get('is_unlimited') or _rule.get('score_to') is None) else f"{_rule['score_to']:.0f}"
+            ws.append([_t("KPI Multiplier"), f"{_rule['score_from']:.0f}-{_hi}",
+                       "", "", "", f"x {c['kpi_multiplier']}", ""])
+        else:
+            ws.append([_t("KPI Multiplier"), "", "", "", "", f"x {c['kpi_multiplier']}", ""])
         _fill_row(ws, ws.max_row, ACCENT, font_hex=PRIMARY.lstrip('#'), bold=True)
 
     ws.append([])
@@ -680,8 +689,10 @@ def make_pdf_salesperson(c: dict, lang: str = 'en') -> bytes:
     # ── KPI Breakdown — each KPI item with its score, weight and contribution ──
     kpi = c.get('kpi') or {}
     kpi_items = kpi.get('items') or []
-    if kpi_items:
-        story.append(Paragraph(_c(_t("KPI Breakdown")), sec_st))
+    story.append(Paragraph(_c(_t("KPI Score Breakdown")), sec_st))
+    if not kpi_items:
+        story.append(Paragraph(_c(_t("No KPI items configured.")), sub_st))
+    else:
         kpi_data = [[_c(_t("KPI Item")), _c(_t("Weight %")), _c(_t("Score")),
                      _c(_t("Achieved %")), _c(_t("Weighted Points")), _c(_t("Source"))]]
         for it in kpi_items:
@@ -705,8 +716,15 @@ def make_pdf_salesperson(c: dict, lang: str = 'en') -> bytes:
                              f"-{kpi['penalty']:.1f}", ""])
         kpi_data.append([_c(_t("Final KPI Score")), "", "", "",
                          f"{kpi.get('final_score', c['kpi_score']):.1f}", ""])
+        # Applied multiplier rule → shows HOW the multiplier was derived
+        _rule = kpi.get('applied_rule')
+        if _rule:
+            _hi = "∞" if (_rule.get('is_unlimited') or _rule.get('score_to') is None) else f"{_rule['score_to']:.0f}"
+            _rng = f"{_rule['score_from']:.0f}–{_hi}"
+        else:
+            _rng = "—"
         kpi_data.append([_c(_t("KPI Multiplier")), "", "", "",
-                         f"x {c['kpi_multiplier']}", ""])
+                         f"x {c['kpi_multiplier']}", _c(_rng)])
         # summary rows = Weighted Score, Final KPI Score, KPI Multiplier (+ bonus/penalty)
         n_summary = 3 + (1 if kpi.get('bonus') else 0) + (1 if kpi.get('penalty') else 0)
         ktbl = Table(_rtl_rows(kpi_data, lang), hAlign=_rtl_halign(lang), repeatRows=1)
@@ -724,7 +742,7 @@ def make_pdf_salesperson(c: dict, lang: str = 'en') -> bytes:
              [HexColor('#ffffff'), HexColor('#f7f9fb')]),
         ] + _rtl_style(lang)))
         story.append(ktbl)
-        story.append(Spacer(1, 12))
+    story.append(Spacer(1, 12))
 
     story.append(Paragraph(_c(_t("Commission Summary")), sec_st))
     summary = [
@@ -1016,11 +1034,13 @@ with tab_person:
             m3.metric(t("Base Comm."),   f"SAR {sel_c['base_commission']:,.0f}")
             m4.metric(t("Final Comm."),  f"SAR {sel_c['final_commission']:,.0f}")
 
-            # ── KPI breakdown ─────────────────────────────────────────────────
+            # ── KPI Score Breakdown ───────────────────────────────────────────
             _kpi    = sel_c.get('kpi') or {}
             _kitems = _kpi.get('items') or []
-            if _kitems:
-                st.markdown(f"#### {t('KPI Breakdown')}")
+            st.markdown(f"#### {t('KPI Score Breakdown')}")
+            if not _kitems:
+                st.caption(t("No KPI items configured."))
+            else:
                 _kpi_rows = [{
                     t("KPI Item"):         it['name'],
                     t("Weight %"):         f"{it['weight']:.0f}%",
@@ -1037,7 +1057,13 @@ with tab_person:
                               f"+{_kpi.get('bonus', 0):.0f} / -{_kpi.get('penalty', 0):.0f}")
                 k3.metric(t("Final KPI Score"),
                           f"{_kpi.get('final_score', sel_c['kpi_score']):.1f}")
-                k4.metric(t("KPI Multiplier"), f"x {sel_c['kpi_multiplier']}")
+                _rule = _kpi.get('applied_rule')
+                if _rule:
+                    _hi = "∞" if (_rule.get('is_unlimited') or _rule.get('score_to') is None) else f"{_rule['score_to']:.0f}"
+                    _mhelp = f"{t('Rule')}: {_rule['score_from']:.0f}–{_hi}"
+                else:
+                    _mhelp = None
+                k4.metric(t("KPI Multiplier"), f"x {sel_c['kpi_multiplier']}", help=_mhelp)
 
             st.markdown("---")
             _dl_lang_sp, _dl_pdf_sp = _download_options("sp")

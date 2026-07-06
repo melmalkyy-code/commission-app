@@ -33,7 +33,7 @@ def calc_kpi(period_id: int, sp_id: int) -> dict:
     bonus = adj.get('bonus_points', 0) or 0
     penalty = adj.get('penalty_points', 0) or 0
     final = max(0.0, min(weighted + bonus - penalty, 150.0))
-    multiplier = _get_multiplier(final)
+    multiplier, applied = _get_multiplier_rule(final)
 
     return {
         'items': details,
@@ -42,18 +42,24 @@ def calc_kpi(period_id: int, sp_id: int) -> dict:
         'penalty': penalty,
         'final_score': round(final, 2),
         'multiplier': multiplier,
+        'applied_rule': applied,          # the multiplier bracket that matched
         'weight_total': sum(i['weight'] for i in items),
     }
 
 
-def _get_multiplier(score: float) -> float:
+def _get_multiplier_rule(score: float):
+    """Return (multiplier, rule_dict) for the bracket the score falls in."""
     for rule in get_multiplier_rules(active_only=True):
         upper = rule['score_to'] if not rule['is_unlimited'] else float('inf')
         if upper is None:
             upper = float('inf')
         if rule['score_from'] <= score <= upper:
-            return rule['multiplier']
-    return 1.0
+            return rule['multiplier'], rule
+    return 1.0, None
+
+
+def _get_multiplier(score: float) -> float:
+    return _get_multiplier_rule(score)[0]
 
 
 # -- Commission brackets ------------------------------------------------------
