@@ -519,11 +519,17 @@ def sidebar_nav() -> None:
     st.sidebar.markdown("---")
 
 
+@st.cache_data(ttl=30, show_spinner=False)
+def _cached_db_status():
+    """Health badge state, cached so it is not a live query on every rerun."""
+    from src.db import db_status
+    return db_status()
+
+
 def sidebar_logo(company: str = "Surveying Experts", primary: str = "#354f61") -> None:
     """Render SE logo block + language switcher + navigation in the sidebar."""
-    from src.db import db_status
     from src.branding import logo_data_uri
-    status = db_status()
+    status = _cached_db_status()
     if status['ok'] and status['backend'] == 'postgresql':
         dot, badge_color, badge_text = "●", "#4caf7d", t("Cloud database")
     elif status['ok']:
