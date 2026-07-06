@@ -162,6 +162,13 @@ _AR: dict[str, str] = {
     "Raw Score":   "الدرجة الخام",
     "Normalized":  "الدرجة المعيارية",
     "Contribution":"المساهمة",
+    "KPI Breakdown":   "تفصيل مؤشرات الأداء",
+    "Score":           "الدرجة",
+    "Achieved %":      "نسبة الإنجاز %",
+    "Weighted Points": "النقاط المرجحة",
+    "Auto":            "تلقائي",
+    "Manual":          "يدوي",
+    "Bonus / Penalty": "مكافأة / خصم",
 
     # ── Commission Report ─────────────────────────────────────────────────────
     "Base Commission × KPI Multiplier = Final Commission":

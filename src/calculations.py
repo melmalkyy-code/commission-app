@@ -137,6 +137,7 @@ def calc_all_commissions(period_id: int) -> list:
             'base_commission':  round(base, 2),
             'kpi_score':        kpi['final_score'],
             'kpi_multiplier':   kpi['multiplier'],
+            'kpi':              kpi,   # full breakdown: items, bonus, penalty, weighted_score
             'final_commission': final,
             'total_actual':     total_actual,
             'total_target':     total_target,

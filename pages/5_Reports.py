@@ -63,6 +63,34 @@ def _qoq_g(curr: float, prev: float) -> str:
     return f"{'▲' if d >= 0 else '▼'} {abs(d):.1f}%"
 
 
+# ─── RTL helpers for Arabic PDF output ───────────────────────────────────────
+def _is_ar(lang) -> bool:
+    return lang == 'ar'
+
+
+def _rtl_rows(data, lang):
+    """Reverse each row's columns so the first logical column sits on the right."""
+    return [list(reversed(r)) for r in data] if _is_ar(lang) else data
+
+
+def _rtl_widths(widths, lang):
+    return list(reversed(widths)) if (widths and _is_ar(lang)) else widths
+
+
+def _rtl_halign(lang) -> str:
+    return 'RIGHT' if _is_ar(lang) else 'LEFT'
+
+
+def _rtl_style(lang):
+    """Extra TableStyle commands to right-align every cell for Arabic."""
+    return [('ALIGN', (0, 0), (-1, -1), 'RIGHT')] if _is_ar(lang) else []
+
+
+def _para_align(lang):
+    from reportlab.lib.enums import TA_RIGHT, TA_LEFT
+    return TA_RIGHT if _is_ar(lang) else TA_LEFT
+
+
 # ─── Excel helpers ────────────────────────────────────────────────────────────
 def _fill_row(ws, row_idx, fill_hex, font_hex="FFFFFF", bold=True):
     from openpyxl.styles import PatternFill, Font, Alignment
@@ -307,6 +335,32 @@ def make_excel_salesperson(c: dict, lang: str = 'en') -> bytes:
         ws.append([cr['category_name'], round(cr['actual_sales'], 0),
                    round(cr['target'], 0), round(ach, 1),
                    cr['bracket'], round(cr['rate'], 2), round(cr['commission'], 0)])
+
+    # KPI breakdown
+    kpi = c.get('kpi') or {}
+    kitems = kpi.get('items') or []
+    if kitems:
+        ws.append([])
+        ws.append([_t("KPI Breakdown")])
+        _fill_row(ws, ws.max_row, PRIMARY)
+        ws.append([_t("KPI Item"), _t("Weight %"), _t("Score"), _t("Max Score"),
+                   _t("Achieved %"), _t("Weighted Points"), _t("Source")])
+        _fill_row(ws, ws.max_row, PRIMARY)
+        for it in kitems:
+            ws.append([it['name'], it['weight'], round(it['raw_score'], 1),
+                       it['max_score'], round(it['normalized'], 1),
+                       round(it['contribution'], 1),
+                       _t("Auto") if it.get('is_auto') else _t("Manual")])
+        ws.append([_t("Weighted Score"), "", "", "", "",
+                   round(kpi.get('weighted_score', 0), 1), ""])
+        if kpi.get('bonus'):
+            ws.append([_t("Bonus"), "", "", "", "", round(kpi['bonus'], 1), ""])
+        if kpi.get('penalty'):
+            ws.append([_t("Penalty"), "", "", "", "", -round(kpi['penalty'], 1), ""])
+        ws.append([_t("Final KPI Score"), "", "", "", "",
+                   round(kpi.get('final_score', c['kpi_score']), 1), ""])
+        _fill_row(ws, ws.max_row, ACCENT, font_hex=PRIMARY.lstrip('#'), bold=True)
+
     ws.append([])
     for label, val in [(_t("Base Commission"), round(c['base_commission'], 0)),
                        (_t("KPI Score"),        round(c['kpi_score'], 2)),
@@ -381,13 +435,14 @@ def make_pdf_company(lang: str = 'en') -> bytes:
     pc = HexColor(PRIMARY)
     story = []
 
+    _al = _para_align(lang)
     title_st = ParagraphStyle('T', parent=styles['Title'], fontSize=16,
-                               textColor=pc, fontName=_fn)
+                               textColor=pc, fontName=_fn, alignment=_al)
     sub_st   = ParagraphStyle('S', parent=styles['Normal'], fontSize=10,
-                               textColor=HexColor('#5a7080'), fontName=_fn)
+                               textColor=HexColor('#5a7080'), fontName=_fn, alignment=_al)
     sec_st   = ParagraphStyle('Sec', parent=styles['Normal'], fontSize=11,
                                fontName=_fnb, textColor=pc,
-                               spaceBefore=12, spaceAfter=6)
+                               spaceBefore=12, spaceAfter=6, alignment=_al)
 
     story.append(Paragraph(_c(f"{_t('Commission Summary')} — {period_label}"), title_st))
     story.append(Paragraph(_c(COMPANY), sub_st))
@@ -405,7 +460,8 @@ def make_pdf_company(lang: str = 'en') -> bytes:
         [_c(_t("Total Salespersons")),     str(totals['total_count'])],
         [_c(_t("Achieved Target")),        str(totals['achieved_count'])],
     ]
-    stbl = Table(summary_data, colWidths=[250, 180], hAlign='LEFT')
+    stbl = Table(_rtl_rows(summary_data, lang),
+                 colWidths=_rtl_widths([250, 180], lang), hAlign=_rtl_halign(lang))
     stbl.setStyle(TableStyle([
         ('BACKGROUND',     (0, 0), (-1, 0),  pc),
         ('TEXTCOLOR',      (0, 0), (-1, 0),  HexColor('#ffffff')),
@@ -416,7 +472,7 @@ def make_pdf_company(lang: str = 'en') -> bytes:
         ('PADDING',        (0, 0), (-1, -1), 6),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1),
          [HexColor('#ffffff'), HexColor('#f7f9fb')]),
-    ]))
+    ] + _rtl_style(lang)))
     story.append(stbl)
     story.append(Spacer(1, 14))
 
@@ -431,7 +487,7 @@ def make_pdf_company(lang: str = 'en') -> bytes:
             f"{c['total_actual']:,.0f}", f"{c['achievement']:.1f}%",
             f"x{c['kpi_multiplier']}", f"{c['final_commission']:,.0f}",
         ])
-    sp_tbl = Table(sp_data, hAlign='LEFT', repeatRows=1)
+    sp_tbl = Table(_rtl_rows(sp_data, lang), hAlign=_rtl_halign(lang), repeatRows=1)
     sp_tbl.setStyle(TableStyle([
         ('BACKGROUND',     (0, 0), (-1, 0),  pc),
         ('TEXTCOLOR',      (0, 0), (-1, 0),  HexColor('#ffffff')),
@@ -442,7 +498,7 @@ def make_pdf_company(lang: str = 'en') -> bytes:
         ('PADDING',        (0, 0), (-1, -1), 4),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1),
          [HexColor('#ffffff'), HexColor('#f7f9fb')]),
-    ]))
+    ] + _rtl_style(lang)))
     story.append(sp_tbl)
 
     doc.build(story, onFirstPage=_draw_page_bg, onLaterPages=_draw_page_bg)
@@ -469,13 +525,14 @@ def make_pdf_branch(branch_name: str, persons: list, lang: str = 'en') -> bytes:
     ac = HexColor(ACCENT)
     story = []
 
+    _al = _para_align(lang)
     title_st = ParagraphStyle('T', parent=styles['Title'], fontSize=16,
-                               textColor=pc, fontName=_fn)
+                               textColor=pc, fontName=_fn, alignment=_al)
     sub_st   = ParagraphStyle('S', parent=styles['Normal'], fontSize=10,
-                               textColor=HexColor('#5a7080'), fontName=_fn)
+                               textColor=HexColor('#5a7080'), fontName=_fn, alignment=_al)
     sec_st   = ParagraphStyle('Sec', parent=styles['Normal'], fontSize=11,
                                fontName=_fnb, textColor=pc,
-                               spaceBefore=12, spaceAfter=6)
+                               spaceBefore=12, spaceAfter=6, alignment=_al)
 
     story.append(Paragraph(_c(f"{_t('Branch Report')} — {branch_name} | {period_label}"), title_st))
     story.append(Paragraph(_c(COMPANY), sub_st))
@@ -506,7 +563,7 @@ def make_pdf_branch(branch_name: str, persons: list, lang: str = 'en') -> bytes:
         f"{b_final:,.0f}",
     ])
 
-    tbl = Table(tbl_data, hAlign='LEFT', repeatRows=1)
+    tbl = Table(_rtl_rows(tbl_data, lang), hAlign=_rtl_halign(lang), repeatRows=1)
     tbl.setStyle(TableStyle([
         ('BACKGROUND',     (0, 0),  (-1, 0),  pc),
         ('TEXTCOLOR',      (0, 0),  (-1, 0),  HexColor('#ffffff')),
@@ -519,7 +576,7 @@ def make_pdf_branch(branch_name: str, persons: list, lang: str = 'en') -> bytes:
         ('PADDING',        (0, 0),  (-1, -1), 5),
         ('ROWBACKGROUNDS', (0, 1),  (-1, -2),
          [HexColor('#ffffff'), HexColor('#f7f9fb')]),
-    ]))
+    ] + _rtl_style(lang)))
     story.append(tbl)
 
     doc.build(story, onFirstPage=_draw_page_bg, onLaterPages=_draw_page_bg)
@@ -547,15 +604,17 @@ def make_pdf_salesperson(c: dict, lang: str = 'en') -> bytes:
     ac = HexColor(ACCENT)
     story = []
 
+    _al = _para_align(lang)
     title_st = ParagraphStyle('T', parent=styles['Title'],
-                               fontSize=16, textColor=pc, fontName=_fn)
+                               fontSize=16, textColor=pc, fontName=_fn, alignment=_al)
     sub_st   = ParagraphStyle('S', parent=styles['Normal'],
-                               fontSize=10, textColor=HexColor('#5a7080'), fontName=_fn)
+                               fontSize=10, textColor=HexColor('#5a7080'),
+                               fontName=_fn, alignment=_al)
     sec_st   = ParagraphStyle('Sec', parent=styles['Normal'],
                                fontSize=11, fontName=_fnb,
-                               textColor=pc, spaceBefore=12, spaceAfter=6)
+                               textColor=pc, spaceBefore=12, spaceAfter=6, alignment=_al)
 
-    # Header — logo left, title right
+    # Header — logo and title (sides swap for RTL)
     from reportlab.platypus import Table as RLTable, TableStyle as RLTS
     from reportlab.lib.units import cm
     header_logo = None
@@ -575,7 +634,11 @@ def make_pdf_salesperson(c: dict, lang: str = 'en') -> bytes:
         ),
     ]
     if header_logo:
-        hdr_tbl = RLTable([[header_logo, title_block]], colWidths=[2.8 * cm, None])
+        if _is_ar(lang):   # logo on the right for RTL
+            hdr_cells, hdr_widths = [[title_block, header_logo]], [None, 2.8 * cm]
+        else:
+            hdr_cells, hdr_widths = [[header_logo, title_block]], [2.8 * cm, None]
+        hdr_tbl = RLTable(hdr_cells, colWidths=hdr_widths)
         hdr_tbl.setStyle(RLTS([
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('LEFTPADDING', (0, 0), (0, 0), 0),
@@ -599,7 +662,7 @@ def make_pdf_salesperson(c: dict, lang: str = 'en') -> bytes:
             f"{cr['rate']:.2f}%",
             f"SAR {cr['commission']:,.0f}",
         ])
-    tbl = Table(tbl_data, hAlign='LEFT', repeatRows=1)
+    tbl = Table(_rtl_rows(tbl_data, lang), hAlign=_rtl_halign(lang), repeatRows=1)
     tbl.setStyle(TableStyle([
         ('BACKGROUND',   (0, 0), (-1, 0),  pc),
         ('TEXTCOLOR',    (0, 0), (-1, 0),  HexColor('#ffffff')),
@@ -610,9 +673,58 @@ def make_pdf_salesperson(c: dict, lang: str = 'en') -> bytes:
         ('PADDING',      (0, 0), (-1, -1), 5),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1),
          [HexColor('#ffffff'), HexColor('#f7f9fb')]),
-    ]))
+    ] + _rtl_style(lang)))
     story.append(tbl)
     story.append(Spacer(1, 12))
+
+    # ── KPI Breakdown — each KPI item with its score, weight and contribution ──
+    kpi = c.get('kpi') or {}
+    kpi_items = kpi.get('items') or []
+    if kpi_items:
+        story.append(Paragraph(_c(_t("KPI Breakdown")), sec_st))
+        kpi_data = [[_c(_t("KPI Item")), _c(_t("Weight %")), _c(_t("Score")),
+                     _c(_t("Achieved %")), _c(_t("Weighted Points")), _c(_t("Source"))]]
+        for it in kpi_items:
+            src = _t("Auto") if it.get('is_auto') else _t("Manual")
+            kpi_data.append([
+                _c(it['name']),
+                f"{it['weight']:.0f}%",
+                f"{it['raw_score']:.0f} / {it['max_score']:.0f}",
+                f"{it['normalized']:.1f}%",
+                f"{it['contribution']:.1f}",
+                _c(src),
+            ])
+        # summary rows
+        kpi_data.append([_c(_t("Weighted Score")), "", "", "",
+                         f"{kpi.get('weighted_score', 0):.1f}", ""])
+        if kpi.get('bonus'):
+            kpi_data.append([_c(_t("Bonus")), "", "", "",
+                             f"+{kpi['bonus']:.1f}", ""])
+        if kpi.get('penalty'):
+            kpi_data.append([_c(_t("Penalty")), "", "", "",
+                             f"-{kpi['penalty']:.1f}", ""])
+        kpi_data.append([_c(_t("Final KPI Score")), "", "", "",
+                         f"{kpi.get('final_score', c['kpi_score']):.1f}", ""])
+        kpi_data.append([_c(_t("KPI Multiplier")), "", "", "",
+                         f"x {c['kpi_multiplier']}", ""])
+        # summary rows = Weighted Score, Final KPI Score, KPI Multiplier (+ bonus/penalty)
+        n_summary = 3 + (1 if kpi.get('bonus') else 0) + (1 if kpi.get('penalty') else 0)
+        ktbl = Table(_rtl_rows(kpi_data, lang), hAlign=_rtl_halign(lang), repeatRows=1)
+        ktbl.setStyle(TableStyle([
+            ('BACKGROUND',   (0, 0), (-1, 0),  pc),
+            ('TEXTCOLOR',    (0, 0), (-1, 0),  HexColor('#ffffff')),
+            ('FONTNAME',     (0, 0), (-1, -1), _fn),
+            ('FONTNAME',     (0, 0), (-1, 0),  _fnb),
+            ('FONTNAME',     (0, -1), (-1, -1), _fnb),
+            ('BACKGROUND',   (0, -1), (-1, -1), ac),
+            ('FONTSIZE',     (0, 0), (-1, -1), 8),
+            ('GRID',         (0, 0), (-1, -1), 0.3, HexColor('#dde5ea')),
+            ('PADDING',      (0, 0), (-1, -1), 5),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1 - n_summary),
+             [HexColor('#ffffff'), HexColor('#f7f9fb')]),
+        ] + _rtl_style(lang)))
+        story.append(ktbl)
+        story.append(Spacer(1, 12))
 
     story.append(Paragraph(_c(_t("Commission Summary")), sec_st))
     summary = [
@@ -621,7 +733,8 @@ def make_pdf_salesperson(c: dict, lang: str = 'en') -> bytes:
         [_c(_t("KPI Multiplier")),  f"x {c['kpi_multiplier']}"],
         [_c(_t("FINAL COMMISSION")), f"SAR {c['final_commission']:,.0f}"],
     ]
-    stbl = Table(summary, colWidths=[200, 200], hAlign='LEFT')
+    stbl = Table(_rtl_rows(summary, lang), colWidths=_rtl_widths([200, 200], lang),
+                 hAlign=_rtl_halign(lang))
     stbl.setStyle(TableStyle([
         ('FONTNAME',    (0, 0), (-1, -1), _fn),
         ('FONTSIZE',    (0, 0), (-1, -1), 9),
@@ -631,7 +744,7 @@ def make_pdf_salesperson(c: dict, lang: str = 'en') -> bytes:
         ('TEXTCOLOR',   (0, -1), (-1, -1), pc),
         ('GRID',        (0, 0), (-1, -1), 0.3, HexColor('#dde5ea')),
         ('PADDING',     (0, 0), (-1, -1), 6),
-    ]))
+    ] + _rtl_style(lang)))
     story.append(stbl)
 
     # ── QoQ Comparison section ────────────────────────────────────────────────
@@ -655,7 +768,8 @@ def make_pdf_salesperson(c: dict, lang: str = 'en') -> bytes:
              f"SAR {pc_v:,.0f}", f"SAR {c['final_commission']:,.0f}",
              _qoq_g(c['final_commission'], pc_v)],
         ]
-        qtbl = Table(qoq_data, hAlign='LEFT', repeatRows=1)
+        _gcol = 0 if _is_ar(lang) else -1   # Growth column after RTL reversal
+        qtbl = Table(_rtl_rows(qoq_data, lang), hAlign=_rtl_halign(lang), repeatRows=1)
         qtbl.setStyle(TableStyle([
             ('BACKGROUND',   (0, 0), (-1, 0),  pc),
             ('TEXTCOLOR',    (0, 0), (-1, 0),  HexColor('#ffffff')),
@@ -666,8 +780,8 @@ def make_pdf_salesperson(c: dict, lang: str = 'en') -> bytes:
             ('PADDING',      (0, 0), (-1, -1), 5),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1),
              [HexColor('#ffffff'), HexColor('#f7f9fb')]),
-            ('FONTNAME',     (-1, 1), (-1, -1), _fnb),
-        ]))
+            ('FONTNAME',     (_gcol, 1), (_gcol, -1), _fnb),
+        ] + _rtl_style(lang)))
         story.append(qtbl)
 
     doc.build(story, onFirstPage=_draw_page_bg, onLaterPages=_draw_page_bg)
@@ -901,6 +1015,29 @@ with tab_person:
             m2.metric(t("Achievement"),  f"{sel_c['achievement']:.1f}%")
             m3.metric(t("Base Comm."),   f"SAR {sel_c['base_commission']:,.0f}")
             m4.metric(t("Final Comm."),  f"SAR {sel_c['final_commission']:,.0f}")
+
+            # ── KPI breakdown ─────────────────────────────────────────────────
+            _kpi    = sel_c.get('kpi') or {}
+            _kitems = _kpi.get('items') or []
+            if _kitems:
+                st.markdown(f"#### {t('KPI Breakdown')}")
+                _kpi_rows = [{
+                    t("KPI Item"):         it['name'],
+                    t("Weight %"):         f"{it['weight']:.0f}%",
+                    t("Score"):            f"{it['raw_score']:.0f} / {it['max_score']:.0f}",
+                    t("Achieved %"):       f"{it['normalized']:.1f}%",
+                    t("Weighted Points"):  f"{it['contribution']:.1f}",
+                    t("Source"):           t("Auto") if it.get('is_auto') else t("Manual"),
+                } for it in _kitems]
+                st.dataframe(pd.DataFrame(_kpi_rows), use_container_width=True, hide_index=True)
+                k1, k2, k3, k4 = st.columns(4)
+                k1.metric(t("Weighted Score"),  f"{_kpi.get('weighted_score', 0):.1f}")
+                if _kpi.get('bonus') or _kpi.get('penalty'):
+                    k2.metric(t("Bonus / Penalty"),
+                              f"+{_kpi.get('bonus', 0):.0f} / -{_kpi.get('penalty', 0):.0f}")
+                k3.metric(t("Final KPI Score"),
+                          f"{_kpi.get('final_score', sel_c['kpi_score']):.1f}")
+                k4.metric(t("KPI Multiplier"), f"x {sel_c['kpi_multiplier']}")
 
             st.markdown("---")
             _dl_lang_sp, _dl_pdf_sp = _download_options("sp")
