@@ -209,7 +209,6 @@ def _show_login():
     st.html(f"""
     {_FONT_LINKS}
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
     #MainMenu, footer, [data-testid="stToolbar"] {{ visibility:hidden !important; }}
     [data-testid="stSidebar"], [data-testid="stSidebarNav"],
     [data-testid="collapsedControl"] {{ display:none !important; }}

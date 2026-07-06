@@ -9,19 +9,17 @@ from src.i18n import lang_switcher, t, is_rtl
 _FONT    = "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
 _FONT_AR = "https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700&display=swap"
 
-# Font loading via <link> (more reliable on mobile than @import in a <style>)
+# Fonts loaded via a single async <link> with preconnect. NOT @import inside a
+# <style> — that is render-blocking and stalls every page on Google Fonts.
 _FONT_LINKS = (
     "<link rel='preconnect' href='https://fonts.googleapis.com'>"
     "<link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>"
     "<link rel='stylesheet' "
-    "href='https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700"
-    "&family=IBM+Plex+Mono:wght@400;500&family=Cairo:wght@400;500;600;700&display=swap'>"
+    "href='https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700"
+    "&family=Cairo:wght@400;600;700&display=swap'>"
 )
 
 _CSS = """
-@import url('{font}');
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700&display=swap');
-
 /* ── Design tokens ── */
 :root {
   --se-navy:   #1a2b38;
@@ -459,7 +457,6 @@ footer { visibility: hidden; }
 
 
 _RTL_CSS = """
-@import url('{font_ar}');
 /* ── Arabic RTL overrides ── */
 html, body, .main, .main .block-container,
 .main [data-testid="stVerticalBlock"],

@@ -265,6 +265,20 @@ def get_kpi_adjustment(period_id: int, sp_id: int) -> dict:
     return row if row else {'bonus_points': 0.0, 'penalty_points': 0.0, 'notes': ''}
 
 
+@st.cache_data(ttl=120, show_spinner=False)
+def get_all_kpi_scores(period_id: int) -> dict:
+    """All manual KPI scores for a period in one query: {(sp_id, item_id): score}."""
+    rows = fetchall("SELECT salesperson_id, kpi_item_id, score FROM kpi_records WHERE period_id=%s", (period_id,))
+    return {(r['salesperson_id'], r['kpi_item_id']): float(r['score'] or 0) for r in rows}
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def get_all_kpi_adjustments(period_id: int) -> dict:
+    """All KPI bonus/penalty adjustments for a period: {sp_id: (bonus, penalty)}."""
+    rows = fetchall("SELECT salesperson_id, bonus_points, penalty_points FROM kpi_adjustments WHERE period_id=%s", (period_id,))
+    return {r['salesperson_id']: (float(r['bonus_points'] or 0), float(r['penalty_points'] or 0)) for r in rows}
+
+
 def save_kpi_adjustment(period_id: int, sp_id: int, bonus: float, penalty: float, notes: str = ""):
     execute("INSERT INTO kpi_adjustments (period_id, salesperson_id, bonus_points, penalty_points, notes) VALUES (%s,%s,%s,%s,%s) ON CONFLICT (period_id, salesperson_id) DO UPDATE SET bonus_points=%s, penalty_points=%s, notes=%s", (period_id, sp_id, bonus, penalty, notes, bonus, penalty, notes))
 

@@ -4,12 +4,50 @@ import streamlit as st
 from src.models import (
     get_salespersons, get_categories, get_brackets, get_calc_method,
     get_tier_target, get_sales, get_kpi_items, get_multiplier_rules,
-    get_kpi_score, get_kpi_adjustment, get_category_achievement
+    get_kpi_score, get_kpi_adjustment, get_category_achievement,
+    get_tiers, get_all_kpi_scores, get_all_kpi_adjustments,
 )
 
 
 def _safe_div(a, b, default=0.0):
     return (a / b) if b else default
+
+
+def _calc_kpi_maps(sp_id, tier_id, kpi_items, scores_map, adj_map,
+                   sales_map, tier_targets_map):
+    """KPI calc for one salesperson using pre-loaded maps — no DB queries.
+    Produces the same result dict as calc_kpi()."""
+    weighted = 0.0
+    details  = []
+    for item in kpi_items:
+        if item.get('linked_category_id'):
+            cat_id = item['linked_category_id']
+            actual = sales_map.get((sp_id, cat_id), 0.0)
+            target = tier_targets_map.get(tier_id, {}).get(cat_id, 0.0)
+            raw = min((actual / target * 100) if target else 0.0, 100.0)
+            is_auto = True
+        else:
+            raw = scores_map.get((sp_id, item['id']), 0.0)
+            is_auto = False
+        norm    = _safe_div(raw, item['max_score']) * 100
+        contrib = _safe_div(norm * item['weight'], 100)
+        weighted += contrib
+        details.append({**item, 'raw_score': raw, 'normalized': norm,
+                        'contribution': contrib, 'is_auto': is_auto})
+
+    bonus, penalty = adj_map.get(sp_id, (0.0, 0.0))
+    final = max(0.0, min(weighted + bonus - penalty, 150.0))
+    multiplier, applied = _get_multiplier_rule(final)
+    return {
+        'items': details,
+        'weighted_score': round(weighted, 2),
+        'bonus': bonus,
+        'penalty': penalty,
+        'final_score': round(final, 2),
+        'multiplier': multiplier,
+        'applied_rule': applied,
+        'weight_total': sum(i['weight'] for i in kpi_items),
+    }
 
 
 # -- KPI ----------------------------------------------------------------------
@@ -106,20 +144,29 @@ def calc_all_commissions(period_id: int) -> list:
     salespersons = get_salespersons(active_only=True)
     categories   = [c for c in get_categories(active_only=True) if c['include_in_commission']]
     all_sales    = get_sales(period_id)
+    sales_map    = {(r['salesperson_id'], r['category_id']): r['actual_sales'] for r in all_sales}
 
-    sales_map = {(r['salesperson_id'], r['category_id']): r['actual_sales'] for r in all_sales}
+    # Bulk-load everything the loop needs so it makes ZERO per-salesperson
+    # queries (was ~40-50 round-trips to the remote DB per computation).
+    kpi_items        = get_kpi_items(active_only=True)
+    scores_map       = get_all_kpi_scores(period_id)
+    adj_map          = get_all_kpi_adjustments(period_id)
+    tier_targets_map = {t['id']: t['targets'] for t in get_tiers()}
+    bracket_map      = {c['id']: get_brackets(c['id'], active_only=True) for c in categories}
+    method_map       = {c['id']: get_calc_method(c['id']) for c in categories}
 
     results = []
     for sp in salespersons:
-        kpi = calc_kpi(period_id, sp['id'])
+        kpi = _calc_kpi_maps(sp['id'], sp.get('tier_id'), kpi_items,
+                             scores_map, adj_map, sales_map, tier_targets_map)
         cat_results = []
         base = 0.0
         for cat in categories:
             actual   = sales_map.get((sp['id'], cat['id']), 0.0)
-            target   = get_tier_target(sp['tier_id'], cat['id']) if sp['tier_id'] else 0.0
+            target   = tier_targets_map.get(sp.get('tier_id'), {}).get(cat['id'], 0.0)
             ach      = _safe_div(actual * 100, target)
-            method   = get_calc_method(cat['id'])
-            brackets = get_brackets(cat['id'], active_only=True)
+            method   = method_map[cat['id']]
+            brackets = bracket_map[cat['id']]
             if method == 'progressive':
                 comm, label, rate = calc_progressive(actual, brackets)
             else:

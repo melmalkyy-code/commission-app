@@ -76,7 +76,13 @@ def _open_sqlite():
 
 def _pg_connect():
     import psycopg2
-    conn = psycopg2.connect(_DB_URL, connect_timeout=10)
+    # TCP keepalives keep the pooled connection alive so we avoid the slow
+    # reconnect (TLS + auth handshake) on every interaction after a short idle.
+    conn = psycopg2.connect(
+        _DB_URL, connect_timeout=10,
+        keepalives=1, keepalives_idle=30,
+        keepalives_interval=10, keepalives_count=5,
+    )
     conn.autocommit = True
     return conn
 
@@ -197,15 +203,11 @@ def lastrowid(cur) -> int:
 
 
 def db_status() -> dict:
-    """Current backend and reachability — used for the sidebar health badge."""
+    """Backend for the sidebar badge — derived from config, no live query.
+    (Pinging the DB on every page just to draw a badge was pure overhead; a
+    real connection failure surfaces on the page's actual data queries.)"""
     _detect_backend()
     if not _DB_URL:
         return {'backend': 'sqlite', 'ok': True,
                 'label': 'Local database (dev only)'}
-    try:
-        cur = execute("SELECT 1", ())
-        cur.fetchone()
-        return {'backend': 'postgresql', 'ok': True, 'label': 'Cloud database'}
-    except Exception as e:
-        return {'backend': 'postgresql', 'ok': False,
-                'label': 'Database unreachable', 'error': str(e)}
+    return {'backend': 'postgresql', 'ok': True, 'label': 'Cloud database'}

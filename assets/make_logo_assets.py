@@ -46,19 +46,27 @@ def main():
     s = max(iw, ih) + 2 * pad
     sq = Image.new("RGBA", (s, s), (0, 0, 0, 0))
     sq.paste(icon, ((s - iw) // 2, (s - ih) // 2), icon)
-    sq.save(os.path.join(HERE, "logo_icon.png"))
 
     # Favicon = icon on a white rounded square (readable on any browser tab)
-    F = 512
+    F = 256
     fav = Image.new("RGBA", (F, F), (0, 0, 0, 0))
     mask = Image.new("L", (F, F), 0)
-    ImageDraw.Draw(mask).rounded_rectangle([0, 0, F - 1, F - 1], radius=96, fill=255)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, F - 1, F - 1], radius=48, fill=255)
     white = Image.new("RGBA", (F, F), (255, 255, 255, 255))
     fav.paste(white, (0, 0), mask)
     inner = int(F * 0.74)
     ic = sq.resize((inner, inner), Image.LANCZOS)
     fav.paste(ic, ((F - inner) // 2, (F - inner) // 2), ic)
-    fav.save(os.path.join(HERE, "favicon.png"))
+    fav.save(os.path.join(HERE, "favicon.png"), optimize=True)
+
+    # Downscale the display assets — they were multi-megapixel but render tiny.
+    # Keeping them small removes ~100 KB of base64 from every page render.
+    sq.resize((128, 128), Image.LANCZOS).save(
+        os.path.join(HERE, "logo_icon.png"), optimize=True)
+    fw, fh = full.size
+    tw = 440
+    full.resize((tw, round(fh * tw / fw)), Image.LANCZOS).save(
+        os.path.join(HERE, "logo_full.png"), optimize=True)
     print("wrote logo_full.png, logo_icon.png, favicon.png")
 
 
