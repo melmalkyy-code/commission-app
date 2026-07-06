@@ -115,13 +115,14 @@ with tabs[1]:
                     log_action("ADD_BRANCH", "branch", entity_name=n)
                     st.rerun()
 
-    for _bi, br in enumerate(branches):
+    for br in branches:
+        _bid = br['id']
         status = t("Active") if br['is_active'] else t("Inactive")
         with st.expander(f"[{status}] {br['name']} — {br.get('region', '')}"):
-            with st.form(f"br_edit_{_bi}"):
-                new_name   = st.text_input(t("Name"),   br['name'],            key=f"br_n_{_bi}")
-                new_region = st.text_input(t("Region"), br.get('region', ''), key=f"br_r_{_bi}")
-                is_active  = st.checkbox(t("Active"),   bool(br['is_active']),  key=f"br_a_{_bi}")
+            with st.form(f"br_edit_{_bid}"):
+                new_name   = st.text_input(t("Name"),   br['name'],            key=f"br_n_{_bid}")
+                new_region = st.text_input(t("Region"), br.get('region', ''), key=f"br_r_{_bid}")
+                is_active  = st.checkbox(t("Active"),   bool(br['is_active']),  key=f"br_a_{_bid}")
                 c1, c2    = st.columns(2)
                 if c1.form_submit_button(t("Save"), type="primary"):
                     _save(update_branch, br['id'], new_name, new_region, is_active)
@@ -153,21 +154,22 @@ with tabs[2]:
                          ok=f"'{n}' added.", err=f"'{n}' already exists.") is not None:
                     st.rerun()
 
-    for _si, sp in enumerate(sps):
+    for sp in sps:
+        _spid = sp['id']
         status = t("Active") if sp['is_active'] else t("Inactive")
         with st.expander(f"[{status}] {sp['name']} — {sp.get('branch_name', '')}"):
-            with st.form(f"sp_edit_{_si}"):
-                new_n    = st.text_input(t("Name"),  sp['name'],              key=f"sp_n_{_si}")
-                new_em   = st.text_input(t("Email"), sp.get('email', ''),     key=f"sp_e_{_si}")
+            with st.form(f"sp_edit_{_spid}"):
+                new_n    = st.text_input(t("Name"),  sp['name'],              key=f"sp_n_{_spid}")
+                new_em   = st.text_input(t("Email"), sp.get('email', ''),     key=f"sp_e_{_spid}")
                 # Branch selectbox
                 cur_br   = sp.get('branch_name', '')
                 br_idx   = br_names.index(cur_br) if cur_br in br_names else 0
-                new_br   = st.selectbox(t("Branch"),      br_names,  index=br_idx,  key=f"sp_br_{_si}")
+                new_br   = st.selectbox(t("Branch"),      br_names,  index=br_idx,  key=f"sp_br_{_spid}")
                 # Tier selectbox
                 cur_tier = sp.get('tier_name', '')
                 tier_idx = tier_names.index(cur_tier) if cur_tier in tier_names else 0
-                new_t    = st.selectbox(t("Target Tier"), tier_names, index=tier_idx, key=f"sp_ti_{_si}")
-                is_act   = st.checkbox(t("Active"), bool(sp['is_active']),     key=f"sp_a_{_si}")
+                new_t    = st.selectbox(t("Target Tier"), tier_names, index=tier_idx, key=f"sp_ti_{_spid}")
+                is_act   = st.checkbox(t("Active"), bool(sp['is_active']),     key=f"sp_a_{_spid}")
                 c1, c2   = st.columns(2)
                 if c1.form_submit_button(t("Save"), type="primary"):
                     if br_names and tier_names:
@@ -439,19 +441,20 @@ with tabs[6]:
 
     if not kpi_items:
         st.info(t("No KPI items yet. Add one above."))
-    for _ki, item in enumerate(kpi_items):
+    for item in kpi_items:
+        _kid = item['id']
         status_lbl = t("Active") if item['is_active'] else t("Inactive")
         with st.expander(f"[{status_lbl}] {item['name']} — {item['weight']:.0f}%"):
-            with st.form(f"kpi_edit_{_ki}"):
+            with st.form(f"kpi_edit_{_kid}"):
                 c1, c2, c3, c4 = st.columns([3, 1.5, 1.5, 1])
-                new_name   = c1.text_input(t("Name"), item['name'], key=f"kpi_n_{_ki}")
+                new_name   = c1.text_input(t("Name"), item['name'], key=f"kpi_n_{_kid}")
                 new_wt     = c2.number_input("Weight %", min_value=0.0, max_value=100.0, step=1.0,
-                                             value=float(item['weight']), key=f"kpi_w_{_ki}")
+                                             value=float(item['weight']), key=f"kpi_w_{_kid}")
                 new_max    = c3.number_input(t("Max Score"), min_value=1.0, step=10.0,
-                                             value=float(item['max_score']), key=f"kpi_m_{_ki}")
+                                             value=float(item['max_score']), key=f"kpi_m_{_kid}")
                 new_sort   = c4.number_input(t("Sort"), min_value=0, step=1,
-                                             value=int(item['sort_order']), key=f"kpi_s_{_ki}")
-                new_active = st.checkbox(t("Active"), value=bool(item['is_active']), key=f"kpi_a_{_ki}")
+                                             value=int(item['sort_order']), key=f"kpi_s_{_kid}")
+                new_active = st.checkbox(t("Active"), value=bool(item['is_active']), key=f"kpi_a_{_kid}")
                 col1, col2 = st.columns(2)
                 if col1.form_submit_button(t("Save"), type="primary"):
                     _save(update_kpi_item, item['id'], new_name, new_wt, new_max, new_active, new_sort,
@@ -475,7 +478,7 @@ with tabs[6]:
 
     with st.form("kpi_links_form"):
         link_selections = {}
-        for _kli, item in enumerate(kpi_items):
+        for item in kpi_items:
             c1, c2 = st.columns([2, 3])
             c1.markdown(f"**{item['name']}** ({item['weight']:.0f}%)")
             current_name = item.get('linked_category_name') or _manual_opt
@@ -484,7 +487,7 @@ with tabs[6]:
             link_selections[item['id']] = c2.selectbox(
                 t("Source"), cat_options,
                 index=cat_options.index(current_name),
-                key=f"kpi_lnk_{_kli}",
+                key=f"kpi_lnk_{item['id']}",
                 label_visibility="collapsed",
             )
         if st.form_submit_button(t("Save Category Links"), type="primary"):
@@ -626,19 +629,20 @@ with tabs[8]:
 
         users = list_users()
         current_user = st.session_state.get('username', '')
-        for _ui, u in enumerate(users):
+        for u in users:
+            _uid = u['id']
             badge = "[Admin]" if u['role'] == 'admin' else "[Viewer]"
             you   = " (you)" if u['username'] == current_user else ""
             with st.expander(f"{badge} {u['username']}{you} — {u['full_name'] or '-'} — {u['role']}"):
-                with st.form(f"usr_edit_{_ui}"):
+                with st.form(f"usr_edit_{_uid}"):
                     np1 = st.text_input(t("New Password"),         type="password",
                                         placeholder=t("Leave blank to keep current"),
-                                        key=f"usr_pw1_{_ui}")
+                                        key=f"usr_pw1_{_uid}")
                     np2 = st.text_input(t("Confirm New Password"), type="password",
-                                        key=f"usr_pw2_{_ui}")
+                                        key=f"usr_pw2_{_uid}")
                     nr  = st.selectbox(t("Role"), ["viewer", "admin"],
                                        index=0 if u['role'] == "viewer" else 1,
-                                       key=f"usr_role_{_ui}")
+                                       key=f"usr_role_{_uid}")
                     c1, c2 = st.columns(2)
                     if c1.form_submit_button(t("Save"), type="primary"):
                         if np1:
