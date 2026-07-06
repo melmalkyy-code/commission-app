@@ -378,29 +378,6 @@ def make_excel_salesperson(c: dict, lang: str = 'en') -> bytes:
         ws.append([label, val])
     _fill_row(ws, ws.max_row, ACCENT, font_hex=PRIMARY.lstrip('#'), bold=True)
 
-    # QoQ comparison sheet
-    p  = _prev_sp_map.get(c['salesperson_name'], {})
-    if p:
-        ws2 = wb.create_sheet(f"{_t('QoQ vs')} {_prev_label}")
-        if lang == 'ar': ws2.sheet_view.rightToLeft = True
-        ws2.append([f"{_t('QoQ Comparison')}: {c['salesperson_name']}",
-                    _prev_label, period_label, _t("Growth QoQ")])
-        _fill_row(ws2, 1, PRIMARY)
-        ps = p.get('total_actual', 0)
-        pc = p.get('final_commission', 0)
-        pa = p.get('achievement', 0)
-        for lbl, pv, cv in [
-            (_t("Total Sales"),      ps,                   c['total_actual']),
-            (_t("Achievement %"),    pa,                   c['achievement']),
-            (_t("Base Commission"),  p.get('base_commission', 0), c['base_commission']),
-            (_t("Final Commission"), pc,                   c['final_commission']),
-        ]:
-            ws2.append([lbl, round(pv, 1), round(cv, 1), _qoq_g(cv, pv)])
-        ws2.append([])
-        ws2.append([_t("FINAL COMMISSION GROWTH"), "", "", _qoq_g(c['final_commission'], pc)])
-        _fill_row(ws2, ws2.max_row, ACCENT, font_hex=PRIMARY.lstrip('#'), bold=True)
-        _auto_width(ws2)
-
     _auto_width(ws)
     buf = io.BytesIO()
     wb.save(buf)
@@ -439,7 +416,7 @@ def make_pdf_company(lang: str = 'en') -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4,
                             leftMargin=50, rightMargin=50,
-                            topMargin=88, bottomMargin=100)
+                            topMargin=95, bottomMargin=155)
     styles = getSampleStyleSheet()
     pc = HexColor(PRIMARY)
     story = []
@@ -528,7 +505,7 @@ def make_pdf_branch(branch_name: str, persons: list, lang: str = 'en') -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4,
                             leftMargin=50, rightMargin=50,
-                            topMargin=88, bottomMargin=100)
+                            topMargin=95, bottomMargin=155)
     styles = getSampleStyleSheet()
     pc = HexColor(PRIMARY)
     ac = HexColor(ACCENT)
@@ -607,7 +584,7 @@ def make_pdf_salesperson(c: dict, lang: str = 'en') -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4,
                             leftMargin=50, rightMargin=50,
-                            topMargin=88, bottomMargin=100)
+                            topMargin=95, bottomMargin=155)
     styles = getSampleStyleSheet()
     pc = HexColor(PRIMARY)
     ac = HexColor(ACCENT)
@@ -764,43 +741,6 @@ def make_pdf_salesperson(c: dict, lang: str = 'en') -> bytes:
         ('PADDING',     (0, 0), (-1, -1), 6),
     ] + _rtl_style(lang)))
     story.append(stbl)
-
-    # ── QoQ Comparison section ────────────────────────────────────────────────
-    p_c = _prev_sp_map.get(c['salesperson_name'], {})
-    if p_c:
-        story.append(Spacer(1, 14))
-        story.append(Paragraph(
-            _c(f"{_t('QoQ Comparison')} vs {_prev_label}"), sec_st))
-        ps_v = p_c.get('total_actual', 0)
-        pc_v = p_c.get('final_commission', 0)
-        pa_v = p_c.get('achievement', 0)
-        qoq_data = [
-            [_c(_t("Metric")), _prev_label, period_label, _c(_t("Growth QoQ"))],
-            [_c(_t("Total Sales")),
-             f"SAR {ps_v:,.0f}", f"SAR {c['total_actual']:,.0f}",
-             _qoq_g(c['total_actual'], ps_v)],
-            [_c(_t("Achievement %")),
-             f"{pa_v:.1f}%", f"{c['achievement']:.1f}%",
-             f"{c['achievement'] - pa_v:+.1f} pp"],
-            [_c(_t("Final Commission")),
-             f"SAR {pc_v:,.0f}", f"SAR {c['final_commission']:,.0f}",
-             _qoq_g(c['final_commission'], pc_v)],
-        ]
-        _gcol = 0 if _is_ar(lang) else -1   # Growth column after RTL reversal
-        qtbl = Table(_rtl_rows(qoq_data, lang), hAlign=_rtl_halign(lang), repeatRows=1)
-        qtbl.setStyle(TableStyle([
-            ('BACKGROUND',   (0, 0), (-1, 0),  pc),
-            ('TEXTCOLOR',    (0, 0), (-1, 0),  HexColor('#ffffff')),
-            ('FONTNAME',     (0, 0), (-1, -1), _fn),
-            ('FONTNAME',     (0, 0), (-1, 0),  _fnb),
-            ('FONTSIZE',     (0, 0), (-1, -1), 8),
-            ('GRID',         (0, 0), (-1, -1), 0.3, HexColor('#dde5ea')),
-            ('PADDING',      (0, 0), (-1, -1), 5),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1),
-             [HexColor('#ffffff'), HexColor('#f7f9fb')]),
-            ('FONTNAME',     (_gcol, 1), (_gcol, -1), _fnb),
-        ] + _rtl_style(lang)))
-        story.append(qtbl)
 
     doc.build(story, onFirstPage=_draw_page_bg, onLaterPages=_draw_page_bg)
     return buf.getvalue()
