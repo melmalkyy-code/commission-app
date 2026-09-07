@@ -581,7 +581,7 @@ def render_df(df) -> None:
     """
     try:
         html = df.to_html(index=False, escape=True, border=0, classes="se-table")
-        st.markdown(f"<div class='se-table-wrap' tabindex='0' role='region' aria-label='{escape(t("Results table"))}'>{html}</div>",
+        st.markdown(f"<div class='se-table-wrap' tabindex='0' role='region' aria-label='{escape(t('Results table'))}'>{html}</div>",
                     unsafe_allow_html=True)
     except Exception:
         st.dataframe(df, use_container_width=True, hide_index=True)
