@@ -24,17 +24,15 @@ sidebar_logo(COMPANY, PRIMARY)
 page_header(t("Reports Center"), t("Download commission reports at company, branch, and salesperson level"), PRIMARY)
 
 col1, col2, _ = st.columns([1, 1, 4])
-year    = col1.selectbox(t("Year"),    [2024, 2025, 2026, 2027], index=2, key="rep_year")
-quarter = col2.selectbox(t("Quarter"), [1, 2, 3, 4],             index=1, key="rep_q",
-                          format_func=q_label)
+from src.period_selection import period_inputs, previous_period
+year, quarter = period_inputs(col1, col2, "reports")
 period  = get_or_create_period(year, quarter)
 from src.ui import period_status
 period_status(period)
 period_label = f"Q{quarter} {year}"
 
 # ── Previous quarter for QoQ ─────────────────────────────────────────────────
-_pq_y = year - 1 if quarter == 1 else year
-_pq_q = 4        if quarter == 1 else quarter - 1
+_pq_y, _pq_q = previous_period(year, quarter)
 _prev_period = get_period(_pq_y, _pq_q)   # SELECT only — never inserts
 _prev_label  = f"Q{_pq_q} {_pq_y}"
 

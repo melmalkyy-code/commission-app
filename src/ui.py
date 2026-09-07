@@ -691,9 +691,8 @@ def period_selector(suffix: str = "") -> tuple[int, int, dict]:
     """Standard year/quarter selector. Returns (year, quarter, period_dict)."""
     from src.models import get_or_create_period
     c1, c2, _ = st.columns([1, 1, 4])
-    year    = c1.selectbox("Year",    [2024, 2025, 2026, 2027], index=2, key=f"yr{suffix}")
-    quarter = c2.selectbox("Quarter", [1, 2, 3, 4],             index=1, key=f"q{suffix}",
-                            format_func=lambda q: f"Q{q}")
+    from src.period_selection import period_inputs
+    year, quarter = period_inputs(c1, c2, suffix or "standard")
     period  = get_or_create_period(year, quarter)
     return year, quarter, period
 

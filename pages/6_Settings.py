@@ -564,11 +564,14 @@ with tabs[6]:
 with tabs[7]:
     st.markdown(f"### {t('Period Settings')}")
     periods = get_periods()
+    from src.period_selection import current_period
+    current_year, current_quarter = current_period()
+    period_years = sorted(set(range(2024, current_year + 2)) | {p["year"] for p in periods})
 
     with st.form("create_period_form"):
         c1, c2 = st.columns(2)
-        py = c1.selectbox(t("Year"),    [2024, 2025, 2026, 2027], index=2, key="new_period_y")
-        pq = c2.selectbox(t("Quarter"), [1, 2, 3, 4], index=1, format_func=q_label, key="new_period_q")
+        py = c1.selectbox(t("Year"),    period_years, index=period_years.index(current_year), key="new_period_y")
+        pq = c2.selectbox(t("Quarter"), [1, 2, 3, 4], index=current_quarter - 1, format_func=q_label, key="new_period_q")
         if st.form_submit_button(t("Create Period"), type="primary"):
             get_or_create_period(py, pq)
             st.success(f"Period Q{pq} {py} ready.")
@@ -576,7 +579,7 @@ with tabs[7]:
 
     for p in periods:
         status  = t("Locked") if p['is_locked'] else t("Open")
-        current = " [Current]" if p['is_current'] else ""
+        current = " [Current]" if (p["year"], p["quarter"]) == (current_year, current_quarter) else ""
         with st.expander(f"[{status}]{current}  Q{p['quarter']} {p['year']}"):
             c1, c2 = st.columns(2)
             if p['is_locked']:

@@ -34,6 +34,27 @@ def main():
             errors = [e.message for e in app.exception]
             failures.extend(errors)
             print('PAGE', page.name, errors or 'PASS')
+        from src.period_selection import current_period, previous_period, selected_period
+        from datetime import date
+        assert current_period(date(2026, 9, 7)) == (2026, 3)
+        assert current_period(date(2027, 1, 1)) == (2027, 1)
+        assert previous_period(2027, 1) == (2026, 4)
+        state = {}
+        assert selected_period(state, date(2026, 9, 7)) == (2026, 3)
+        state['selected_period'] = (2025, 4)
+        assert selected_period(state, date(2026, 9, 8)) == (2025, 4)
+        assert selected_period(state, date(2026, 10, 1)) == (2026, 4)
+        app.switch_page('pages/2_Sales.py').run()
+        assert app.selectbox(key='_period_quarter_sales').value == current_period()[1]
+        app.selectbox(key='_period_quarter_sales').set_value(1).run()
+        app.switch_page('Home.py').run()
+        assert app.selectbox(key='_period_quarter_home').value == 1
+        app.switch_page('pages/5_Reports.py').run()
+        assert app.selectbox(key='_period_quarter_reports').value == 1
+        app.switch_page('pages/2_Sales.py').run()
+        assert app.selectbox(key='_period_quarter_sales').value == 1
+        assert not app.exception
+        print('Calendar rollover, historical selection, and cross-page persistence PASS')
         if failures:
             raise SystemExit(1)
     finally:

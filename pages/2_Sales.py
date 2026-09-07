@@ -24,9 +24,8 @@ sidebar_logo(COMPANY, PRIMARY)
 page_header(t("Sales Input"), t("Enter actual sales amounts (SAR) for each salesperson"), PRIMARY)
 
 col1, col2 = st.columns([1, 1])
-year    = col1.selectbox(t("Year"),    [2024, 2025, 2026, 2027], index=2)
-quarter = col2.selectbox(t("Quarter"), [1, 2, 3, 4],             index=1,
-                          format_func=q_label)
+from src.period_selection import period_inputs, previous_period
+year, quarter = period_inputs(col1, col2, "sales")
 period  = get_or_create_period(year, quarter)
 from src.ui import period_status
 period_status(period)

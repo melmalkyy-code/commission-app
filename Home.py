@@ -36,9 +36,8 @@ st.sidebar.markdown(
     f"<span style='font-size:11px;text-transform:uppercase;letter-spacing:.1em'>"
     f"{t('Active Period')}</span>", unsafe_allow_html=True)
 c1, c2 = st.sidebar.columns(2)
-year    = c1.selectbox(t("Year"),    [2024, 2025, 2026, 2027], index=2, key="home_year")
-quarter = c2.selectbox(t("Quarter"), [1, 2, 3, 4],             index=1, key="home_q",
-                        format_func=q_label)
+from src.period_selection import period_inputs, previous_period
+year, quarter = period_inputs(c1, c2, "home")
 period  = get_or_create_period(year, quarter)
 st.sidebar.markdown("---")
 
@@ -63,8 +62,7 @@ def _sales(pid):
 
 
 # ── Previous quarter for QoQ ─────────────────────────────────────────────────
-_pq_y = year - 1 if quarter == 1 else year
-_pq_q = 4        if quarter == 1 else quarter - 1
+_pq_y, _pq_q = previous_period(year, quarter)
 prev_label  = f"Q{_pq_q} {_pq_y}"
 prev_period = get_period(_pq_y, _pq_q)   # SELECT only — never inserts
 
