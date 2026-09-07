@@ -13,6 +13,10 @@ _LANG_KEY = 'app_lang'
 _Q_AR = {1: "الربع الأول", 2: "الربع الثاني", 3: "الربع الثالث", 4: "الربع الرابع"}
 
 _AR: dict[str, str] = {
+    "Results table": "جدول النتائج",
+    "Workspace": "مساحة العمل",
+    "Administration": "الإدارة",
+    "Open for entry": "مفتوح للإدخال",
     "Reopening retains previous snapshots but enables a new draft. Reconcile legacy quarters against approved reports first.": "إعادة الفتح تحفظ النسخ المعتمدة السابقة وتتيح مسودة جديدة. طابق الفترات القديمة مع التقارير المعتمدة أولاً.",
     "Reason for reopening": "سبب إعادة فتح الفترة",
     "I reviewed the sales, KPI scores, and commission rules. Save an approved snapshot.": "راجعت المبيعات وتقييمات الأداء وقواعد العمولات وأوافق على حفظ نسخة معتمدة.",

@@ -27,6 +27,8 @@ year    = col1.selectbox(t("Year"),    [2024, 2025, 2026, 2027], index=2, key="c
 quarter = col2.selectbox(t("Quarter"), [1, 2, 3, 4],             index=1, key="comm_q",
                           format_func=q_label)
 period  = get_or_create_period(year, quarter)
+from src.ui import period_status
+period_status(period)
 period_label = f"Q{quarter} {year}"
 st.divider()
 

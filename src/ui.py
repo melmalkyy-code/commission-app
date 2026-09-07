@@ -3,6 +3,7 @@ SE Design System CSS injection for Streamlit.
 Call inject_css() once at the top of every page (after set_page_config).
 """
 import streamlit as st
+from html import escape
 from src.i18n import lang_switcher, t, is_rtl
 
 
@@ -47,7 +48,7 @@ html, body, [class*="css"], .stApp {
   background: linear-gradient(180deg, #f5f7f9 0%, #eef1f4 100%) !important;
   background-attachment: fixed !important;
 }
-.main > .block-container {
+:is(.main, [data-testid="stMain"]) > .block-container {
   padding-top: 2.2rem !important;
   padding-bottom: 3rem !important;
   max-width: 1240px !important;
@@ -363,7 +364,7 @@ footer { visibility: hidden; }
    RESPONSIVE — TABLET (≤ 1024px)
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 1024px) {
-  .main > .block-container {
+  :is(.main, [data-testid="stMain"]) > .block-container {
     padding-left: 1.4rem !important;
     padding-right: 1.4rem !important;
     padding-top: 1.6rem !important;
@@ -375,7 +376,7 @@ footer { visibility: hidden; }
    RESPONSIVE — MOBILE (≤ 640px)
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 640px) {
-  .main > .block-container {
+  :is(.main, [data-testid="stMain"]) > .block-container {
     padding-left: 0.85rem !important;
     padding-right: 0.85rem !important;
     padding-top: 1.1rem !important;
@@ -383,9 +384,9 @@ footer { visibility: hidden; }
   }
 
   /* Page header scales down */
-  .main h1 { font-size: 20px !important; line-height: 1.25 !important; }
-  .main h2 { font-size: 17px !important; }
-  .main h3 { font-size: 15px !important; }
+  :is(.main, [data-testid="stMain"]) h1 { font-size: 20px !important; line-height: 1.25 !important; }
+  :is(.main, [data-testid="stMain"]) h2 { font-size: 17px !important; }
+  :is(.main, [data-testid="stMain"]) h3 { font-size: 15px !important; }
 
   /* Metric cards: tighter, prevent value clipping */
   [data-testid="stMetric"],
@@ -394,13 +395,13 @@ footer { visibility: hidden; }
   [data-testid="stMetricLabel"] { font-size: 10.5px !important; }
 
   /* Stack multi-column rows in the main area so inputs are usable on a phone
-     (scoped to .main so the sidebar's own columns are left intact) */
-  .main [data-testid="stHorizontalBlock"] {
+     (scoped to :is(.main, [data-testid="stMain"]) so the sidebar's own columns are left intact) */
+  :is(.main, [data-testid="stMain"]) [data-testid="stHorizontalBlock"] {
     flex-wrap: wrap !important;
     gap: 0.5rem !important;
   }
-  .main [data-testid="stHorizontalBlock"] > [data-testid="column"],
-  .main [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+  :is(.main, [data-testid="stMain"]) [data-testid="stHorizontalBlock"] > [data-testid="column"],
+  :is(.main, [data-testid="stMain"]) [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
     flex: 1 1 100% !important;
     min-width: 100% !important;
     width: 100% !important;
@@ -451,16 +452,76 @@ footer { visibility: hidden; }
 /* Very small phones */
 @media (max-width: 380px) {
   [data-testid="stMetricValue"] { font-size: 17px !important; }
-  .main h1 { font-size: 18px !important; }
+  :is(.main, [data-testid="stMain"]) h1 { font-size: 18px !important; }
+}
+"""
+
+
+_CSS += """
+/* UI refresh: keep the shell stable in both reading directions. */
+[data-testid="stAppViewContainer"] { direction: ltr !important; }
+[data-testid="stMainBlockContainer"] { max-width: 1440px; padding: 2rem 2rem 3rem; }
+.se-page-header {
+  margin-bottom: 1.25rem; padding: 1.2rem 1.4rem;
+  background: linear-gradient(115deg, #fff 65%, #fff8e9);
+  border: 1px solid var(--se-line); border-inline-start: 4px solid var(--se-gold);
+  border-radius: 14px;
+}
+.se-page-header h1 { line-height: 1.4 !important; }
+.se-period-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin: 0.3rem 0 1rem; }
+.se-period-pill { display:inline-flex; align-items:center; gap:6px; padding:5px 12px;
+  border-radius:999px; font-size:12px; font-weight:600; border:1px solid #d9e2e8;
+  background:#edf3f6; color:#243949; }
+.se-period-pill.open { background:#edf8f1; border-color:#bcdcc9; color:#246341; }
+.se-period-pill.locked { background:#fff6df; border-color:#ead299; color:#745310; }
+[data-testid="stSidebar"] [data-testid="stPageLink"] a { min-height:44px; }
+[data-testid="stSidebar"] [data-testid="stPageLink"] a[aria-current="page"] {
+  background:rgba(246,186,59,0.16) !important; border-inline-start:3px solid #f6ba3b;
+}
+[data-testid="stSidebar"] [data-testid="stPageLink"] a[aria-current="page"] * { color:#ffe1a0 !important; }
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] { margin-top:10px; font-weight:600; }
+[data-testid="stSidebar"] .stButton button[kind="primary"] * { color:#1a2b38 !important; }
+[data-testid="stMetric"] { box-shadow:0 2px 8px rgba(26,43,56,0.04) !important; }
+[data-testid="stMetricLabel"] { font-size:12px !important; text-transform:none; letter-spacing:0; }
+[data-testid="stMetricValue"], [data-testid="stMetricValue"] > div {
+  font-variant-numeric:tabular-nums; direction:ltr !important; unicode-bidi:isolate;
+  white-space:normal !important; overflow-wrap:anywhere; line-height:1.35 !important;
+}
+.se-table-wrap { max-height:540px; scrollbar-gutter:stable; }
+.se-table thead th { position:sticky; top:0; z-index:1; }
+.se-table td { padding:11px 14px; font-variant-numeric:tabular-nums; }
+.se-table tbody tr:hover td { background:#eef4f8; }
+.stTabs [data-baseweb="tab"] { min-height:44px; }
+.stTabs [aria-selected="true"] { background:#eaf0f4 !important; border-radius:8px 8px 0 0 !important; }
+button:focus-visible, a:focus-visible, .se-table-wrap:focus-visible {
+  outline:3px solid #e2a52c !important; outline-offset:3px !important;
+}
+.stButton button:disabled { opacity:0.5; box-shadow:none !important; transform:none !important; cursor:not-allowed; }
+@media (max-width: 900px) {
+  [data-testid="stMainBlockContainer"] { padding:1.25rem 1rem 2rem; }
+  [data-testid="stMain"] [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]) { flex-wrap:wrap !important; }
+  [data-testid="stMain"] [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]) > [data-testid="stColumn"] {
+    flex:1 1 calc(50% - 1rem) !important; min-width:calc(50% - 1rem) !important; width:auto !important;
+  }
+}
+@media (max-width: 640px) {
+  .se-page-header { padding:1rem; margin-bottom:1rem; }
+  .se-page-header h1 { font-size:22px !important; }
+  .se-page-header p { font-size:13px !important; }
+  [data-testid="stSidebar"][aria-expanded="false"] { transform:translateX(-110%) !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition:none !important; scroll-behavior:auto !important; }
+  [data-testid="stMetric"]:hover, .stButton button:hover { transform:none !important; }
 }
 """
 
 
 _RTL_CSS = """
 /* ── Arabic RTL overrides ── */
-html, body, .main, .main .block-container,
-.main [data-testid="stVerticalBlock"],
-.main [data-testid="stHorizontalBlock"] > div,
+:is(.main, [data-testid="stMain"]), :is(.main, [data-testid="stMain"]) .block-container,
+:is(.main, [data-testid="stMain"]) [data-testid="stVerticalBlock"],
+:is(.main, [data-testid="stMain"]) [data-testid="stHorizontalBlock"] > div,
 .stForm, .stExpander, .stAlert,
 [data-testid="stMarkdownContainer"],
 [data-testid="stText"],
@@ -492,11 +553,11 @@ label, .stTextInput label, .stSelectbox label,
 [data-baseweb="tab-list"] {
   direction: rtl !important;
 }
-/* Keep sidebar LTR so navigation stays readable */
+/* Arabic navigation follows reading order; the app shell stays LTR. */
 [data-testid="stSidebar"],
 [data-testid="stSidebar"] * {
-  direction: ltr !important;
-  text-align: left !important;
+  direction: rtl !important;
+  text-align: right !important;
 }
 """
 
@@ -520,7 +581,7 @@ def render_df(df) -> None:
     """
     try:
         html = df.to_html(index=False, escape=True, border=0, classes="se-table")
-        st.markdown(f"<div class='se-table-wrap'>{html}</div>",
+        st.markdown(f"<div class='se-table-wrap' tabindex='0' role='region' aria-label='{escape(t("Results table"))}'>{html}</div>",
                     unsafe_allow_html=True)
     except Exception:
         st.dataframe(df, use_container_width=True, hide_index=True)
@@ -538,9 +599,9 @@ def page_header(title: str, subtitle: str = "", primary: str = "#354f61") -> Non
     ) if subtitle else ""
     # Use st.markdown (not st.html) — avoids duplicate resize-event reruns
     st.markdown(
-        f"<div style='margin-bottom:1.5rem;direction:{dir_s};text-align:{align}'>"
+        f"<div class='se-page-header' style='direction:{dir_s};text-align:{align}'>"
         f"<h1 style='color:{primary};margin:0;font-size:26px;font-weight:700;"
-        f"letter-spacing:-0.02em;font-family:{font};text-align:{align}'>{title}</h1>"
+        f"letter-spacing:-0.02em;font-family:{font};text-align:{align}'>{escape(title)}</h1>"
         f"{sub_html}"
         f"</div>",
         unsafe_allow_html=True,
@@ -566,10 +627,14 @@ def sidebar_nav() -> None:
     ]
     _viewer_pages = {"Home.py", "pages/4_Commission.py", "pages/5_Reports.py"}
     viewer = is_viewer()
-    for _path, _label in _all_pages:
+    icons = ["dashboard", "edit_note", "fact_check", "payments", "download", "settings", "history"]
+    st.sidebar.caption(t("Workspace"))
+    for (_path, _label), icon in zip(_all_pages, icons):
         if viewer and _path not in _viewer_pages:
             continue
-        st.sidebar.page_link(_path, label=t(_label))
+        if _label == "Settings":
+            st.sidebar.caption(t("Administration"))
+        st.sidebar.page_link(_path, label=t(_label), icon=f":material/{icon}:")
     st.sidebar.markdown("---")
 
 
@@ -639,3 +704,13 @@ def sar(v: float) -> str:
 
 def pct(v: float) -> str:
     return f"{v:.1f}%"
+
+
+def period_status(period: dict) -> None:
+    """Show the selected quarter and its edit status without changing data."""
+    from src.i18n import q_label
+    state = "locked" if period.get("is_locked") else "open"
+    label = t("Locked") if state == "locked" else t("Open for entry")
+    quarter = escape(f"{q_label(period['quarter'])} · {period['year']}")
+    st.markdown(f'<div class="se-period-row"><span class="se-period-pill">{quarter}</span>'
+                f'<span class="se-period-pill {state}">{escape(label)}</span></div>', unsafe_allow_html=True)

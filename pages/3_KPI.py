@@ -30,6 +30,8 @@ year    = col1.selectbox(t("Year"),    [2024, 2025, 2026, 2027], index=2)
 quarter = col2.selectbox(t("Quarter"), [1, 2, 3, 4],             index=1,
                           format_func=q_label)
 period  = get_or_create_period(year, quarter)
+from src.ui import period_status
+period_status(period)
 if period.get('is_locked'):
     st.warning(t('This quarter is locked. Contact your manager to unlock it in Settings.'))
     st.stop()
