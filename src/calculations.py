@@ -134,13 +134,26 @@ def calc_progressive(sales: float, brackets: list) -> tuple:
 
 
 # -- Full commission calculation -----------------------------------------------
-@st.cache_data(ttl=120, show_spinner=False)
 def calc_all_commissions(period_id: int) -> list:
-    # Cached: this orchestrates many per-record DB reads (sales, KPI scores,
-    # adjustments) for every salesperson. On a remote PostgreSQL each of those
-    # is a network round-trip, so recomputing on every rerun made the app very
-    # slow. Write pages (Sales, KPI, Settings) call st.cache_data.clear(), so
-    # edits are reflected immediately.
+    from src.period_safety import frozen_payload
+    try:
+        payload = frozen_payload(period_id)
+    except ValueError as exc:
+        from src.i18n import t
+        st.error(t(str(exc)))
+        st.stop()
+    return payload['commissions'] if payload is not None else _compute_commissions(period_id)
+
+
+# Preserve existing callers' cache invalidation interface.
+def _clear_commissions():
+    st.cache_data.clear()
+
+calc_all_commissions.clear = _clear_commissions
+
+
+def _compute_commissions(period_id: int) -> list:
+    # Reference lookups remain cached; period status is checked on every read.
     salespersons = get_salespersons(active_only=True)
     categories   = [c for c in get_categories(active_only=True) if c['include_in_commission']]
     all_sales    = get_sales(period_id)

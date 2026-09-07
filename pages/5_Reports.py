@@ -41,7 +41,12 @@ st.divider()
 _EMPTY_T = {'total_sales': 0, 'total_target': 0, 'achievement': 0,
             'total_base': 0, 'total_final': 0, 'achieved_count': 0, 'total_count': 0}
 
-_all_branches    = get_branches()
+from src.period_safety import period_branches
+try:
+    _all_branches    = period_branches(period['id'])
+except ValueError as exc:
+    st.error(t(str(exc)))
+    st.stop()
 _branch_to_region = {b['name']: (b.get('region') or '') for b in _all_branches}
 
 with st.spinner(t("Loading data...")):

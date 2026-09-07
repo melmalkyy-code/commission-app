@@ -30,7 +30,6 @@ period  = get_or_create_period(year, quarter)
 period_label = f"Q{quarter} {year}"
 st.divider()
 
-@st.cache_data(ttl=60, show_spinner=False)
 def _load(pid):
     c = calc_all_commissions(pid)
     return c, get_totals(c)

@@ -3,6 +3,7 @@
 from typing import Optional
 import streamlit as st
 from src.db import execute, fetchall, fetchone, execute_insert
+from src.period_safety import period_write
 
 
 # â”€â”€ Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -242,10 +243,12 @@ def get_kpi_score(period_id: int, sp_id: int, item_id: int) -> float:
     return row['score'] if row else 0.0
 
 
+@period_write
 def save_kpi_score(period_id: int, sp_id: int, item_id: int, score: float):
     execute("INSERT INTO kpi_records (period_id, salesperson_id, kpi_item_id, score) VALUES (%s,%s,%s,%s) ON CONFLICT (period_id, salesperson_id, kpi_item_id) DO UPDATE SET score=%s, updated_at=CURRENT_TIMESTAMP", (period_id, sp_id, item_id, score, score))
 
 
+@period_write
 def save_kpi_scores_bulk(period_id: int, items):
     """Upsert many KPI scores in one round-trip. items: iterable of
     (salesperson_id, kpi_item_id, score). Only pass the cells that changed."""
@@ -279,6 +282,7 @@ def get_all_kpi_adjustments(period_id: int) -> dict:
     return {r['salesperson_id']: (float(r['bonus_points'] or 0), float(r['penalty_points'] or 0)) for r in rows}
 
 
+@period_write
 def save_kpi_adjustment(period_id: int, sp_id: int, bonus: float, penalty: float, notes: str = ""):
     execute("INSERT INTO kpi_adjustments (period_id, salesperson_id, bonus_points, penalty_points, notes) VALUES (%s,%s,%s,%s,%s) ON CONFLICT (period_id, salesperson_id) DO UPDATE SET bonus_points=%s, penalty_points=%s, notes=%s", (period_id, sp_id, bonus, penalty, notes, bonus, penalty, notes))
 
@@ -312,15 +316,21 @@ def get_or_create_period(year: int, quarter: int) -> dict:
 
 
 def lock_period(pid: int):
-    execute("UPDATE periods SET is_locked=1, locked_at=CURRENT_TIMESTAMP WHERE id=%s", (pid,))
+    from src.period_safety import approve_period
+    approve_period(pid, st.session_state.get("username", "system"))
 
 
-def unlock_period(pid: int):
-    execute("UPDATE periods SET is_locked=0, locked_at=NULL WHERE id=%s", (pid,))
+def unlock_period(pid: int, reason: str = ""):
+    from src.period_safety import reopen_period
+    reopen_period(pid, st.session_state.get("username", "system"), reason)
 
 
 # â”€â”€ Sales Records â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def get_sales(period_id: int, sp_id: int = None) -> list[dict]:
+    from src.period_safety import frozen_payload
+    payload = frozen_payload(period_id)
+    if payload is not None:
+        return [r for r in payload["sales"] if sp_id is None or r["salesperson_id"] == sp_id]
     sql = """SELECT sr.salesperson_id, sr.category_id, sr.actual_sales,
                     s.name as sp_name, b.name as branch_name,
                     c.name as cat_name, c.include_in_commission,
@@ -338,10 +348,12 @@ def get_sales(period_id: int, sp_id: int = None) -> list[dict]:
     return fetchall(sql, tuple(params))
 
 
+@period_write
 def save_sale(period_id: int, sp_id: int, cat_id: int, amount: float):
     execute("INSERT INTO sales_records (period_id, salesperson_id, category_id, actual_sales) VALUES (%s,%s,%s,%s) ON CONFLICT (period_id, salesperson_id, category_id) DO UPDATE SET actual_sales=%s, updated_at=CURRENT_TIMESTAMP", (period_id, sp_id, cat_id, amount, amount))
 
 
+@period_write
 def save_sales_bulk(period_id: int, items):
     """Upsert many sales cells in one round-trip. items: iterable of
     (salesperson_id, category_id, amount). Only pass the cells that changed."""

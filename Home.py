@@ -53,13 +53,11 @@ page_header(
 )
 
 
-@st.cache_data(ttl=60, show_spinner=False)
 def _load(pid):
     c = calc_all_commissions(pid)
     return c, get_totals(c)
 
 
-@st.cache_data(ttl=60, show_spinner=False)
 def _sales(pid):
     return get_sales(pid)
 
@@ -86,7 +84,12 @@ with st.spinner(""):
 prev_sp_map = {c['salesperson_name']: c for c in prev_comms}
 
 # Build branch → region mapping from branches table
-_branches_all   = get_branches()
+from src.period_safety import period_branches
+try:
+    _branches_all   = period_branches(period['id'])
+except ValueError as exc:
+    st.error(t(str(exc)))
+    st.stop()
 _branch_to_region = {b['name']: (b.get('region') or '') for b in _branches_all}
 
 

@@ -176,3 +176,7 @@ def create_schema():
     _ddl("ALTER TABLE kpi_items ADD COLUMN linked_category_id INTEGER")
     _ddl("ALTER TABLE branches RENAME COLUMN city TO region")
 
+
+    from src.period_safety import install_protections, atomic
+    with atomic():
+        install_protections()

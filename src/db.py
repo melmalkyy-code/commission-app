@@ -71,6 +71,7 @@ def _open_sqlite():
     conn = sqlite3.connect(db_path, check_same_thread=False, isolation_level=None)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
 
@@ -137,7 +138,7 @@ def execute(sql: str, params: tuple = ()) -> Any:
         cur.execute(adapted, params)
         return cur
     except Exception:
-        if not is_postgres():
+        if not is_postgres() or getattr(_local, 'in_transaction', False):
             raise
         # The connection may have been dropped by the pooler — reconnect
         # once and retry on PostgreSQL. Real SQL errors fail again and
@@ -162,7 +163,7 @@ def execute_many(sql: str, seq_params) -> None:
         cur = conn.cursor()
         cur.executemany(adapted, seq_params)
     except Exception:
-        if not is_postgres():
+        if not is_postgres() or getattr(_local, 'in_transaction', False):
             raise
         _close_quietly()
         conn = get_conn()

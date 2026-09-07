@@ -30,6 +30,9 @@ year    = col1.selectbox(t("Year"),    [2024, 2025, 2026, 2027], index=2)
 quarter = col2.selectbox(t("Quarter"), [1, 2, 3, 4],             index=1,
                           format_func=q_label)
 period  = get_or_create_period(year, quarter)
+if period.get('is_locked'):
+    st.warning(t('This quarter is locked. Contact your manager to unlock it in Settings.'))
+    st.stop()
 st.divider()
 
 kpi_items   = get_kpi_items(active_only=True)
@@ -120,8 +123,9 @@ def _safe_float(series_row, col: str, default=0.0) -> float:
 
 
 # ── Fast autosave: only changed scores (one bulk round-trip) + adjustments ────
-if manual_items:
-    _snap = st.session_state[_snap_key]
+if salespeople:
+    from copy import deepcopy
+    _snap = deepcopy(st.session_state[_snap_key])
     score_changes = []
     adj_changes   = []
     for idx, sp in enumerate(salespeople):
@@ -144,6 +148,7 @@ if manual_items:
         save_kpi_scores_bulk(period_id, score_changes)
     for sp_id, bonus, penalty in adj_changes:
         save_kpi_adjustment(period_id, sp_id, bonus, penalty)
+    st.session_state[_snap_key] = _snap
     if score_changes or adj_changes:
         calc_all_commissions.clear()   # cheap cache-drop so dashboards refresh
         st.toast(f"{t('Saved')} · {len(score_changes) + len(adj_changes)}")

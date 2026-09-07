@@ -580,17 +580,26 @@ with tabs[7]:
         with st.expander(f"[{status}]{current}  Q{p['quarter']} {p['year']}"):
             c1, c2 = st.columns(2)
             if p['is_locked']:
+                st.warning(t('Reopening retains previous snapshots but enables a new draft. Reconcile legacy quarters against approved reports first.'))
+                reopen_reason = st.text_input(t('Reason for reopening'), key=f"reopen_reason_{p['id']}")
                 if c1.button(f"Unlock Q{p['quarter']} {p['year']}",
                               key=f"unlock_{p['id']}"):
-                    unlock_period(p['id'])
-                    log_action("QUARTER_UNLOCK", "period", p['id'], f"Q{p['quarter']} {p['year']}")
+                    try:
+                        unlock_period(p['id'], reopen_reason)
+                    except ValueError as exc:
+                        st.error(t(str(exc)))
+                        st.stop()
                     st.success(t("Unlocked."))
                     st.rerun()
             else:
+                reviewed = st.checkbox(t('I reviewed the sales, KPI scores, and commission rules. Save an approved snapshot.'), key=f"reviewed_{p['id']}")
                 if c1.button(f"Lock Q{p['quarter']} {p['year']}",
-                              key=f"lock_{p['id']}"):
-                    lock_period(p['id'])
-                    log_action("QUARTER_LOCK", "period", p['id'], f"Q{p['quarter']} {p['year']}")
+                              key=f"lock_{p['id']}", disabled=not reviewed):
+                    try:
+                        lock_period(p['id'])
+                    except ValueError as exc:
+                        st.error(t(str(exc)))
+                        st.stop()
                     st.success(t("Locked."))
                     st.rerun()
             if c2.button(t("Set as Current"), key=f"curr_{p['id']}"):

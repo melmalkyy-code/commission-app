@@ -13,6 +13,13 @@ _LANG_KEY = 'app_lang'
 _Q_AR = {1: "الربع الأول", 2: "الربع الثاني", 3: "الربع الثالث", 4: "الربع الرابع"}
 
 _AR: dict[str, str] = {
+    "Reopening retains previous snapshots but enables a new draft. Reconcile legacy quarters against approved reports first.": "إعادة الفتح تحفظ النسخ المعتمدة السابقة وتتيح مسودة جديدة. طابق الفترات القديمة مع التقارير المعتمدة أولاً.",
+    "Reason for reopening": "سبب إعادة فتح الفترة",
+    "I reviewed the sales, KPI scores, and commission rules. Save an approved snapshot.": "راجعت المبيعات وتقييمات الأداء وقواعد العمولات وأوافق على حفظ نسخة معتمدة.",
+    "A reason is required to reopen a quarter.": "يجب إدخال سبب لإعادة فتح الفترة.",
+    "This quarter is locked or no longer exists.": "هذه الفترة مغلقة أو لم تعد موجودة.",
+    "Quarter already locked. Reconcile legacy periods before reopening.": "الفترة مغلقة بالفعل. طابق الفترات القديمة قبل إعادة فتحها.",
+    "This locked quarter has no verified snapshot. An administrator must reconcile it against the approved report before reopening and approving it again.": "هذه الفترة المغلقة لا تحتوي على نسخة معتمدة محفوظة. يجب على المسؤول مطابقتها مع التقرير المعتمد قبل إعادة فتحها واعتمادها مجدداً.",
     # ── Navigation ────────────────────────────────────────────────────────────
     "Dashboard":            "الرئيسية",
     "Sales Input":          "تسجيل المبيعات",
